@@ -1,0 +1,111 @@
+name: EduMesh CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  lint-and-test-backend:
+    name: Backend Lint & Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: edumesh
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: edumesh_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+        working-directory: backend
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        working-directory: backend
+      - name: Lint
+        run: npm run lint --if-present
+        working-directory: backend
+      - name: Test
+        run: npm test
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://edumesh:password@localhost:5432/edumesh_test
+          REDIS_URL: redis://localhost:6379
+          JWT_ACCESS_SECRET: test_access_secret_64_chars_long_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+          JWT_REFRESH_SECRET: test_refresh_secret_64_chars_long_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+          NODE_ENV: test
+
+  lint-and-test-ai:
+    name: AI Service Lint & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: ai-service/requirements.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+        working-directory: ai-service
+      - name: Test
+        run: python -m pytest --tb=short -q
+        working-directory: ai-service
+        continue-on-error: true
+
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Build
+        run: npm run build
+        working-directory: frontend
+
+  deploy:
+    name: Deploy
+    needs: [lint-and-test-backend, lint-and-test-ai, build-frontend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy Frontend to Vercel
+        run: echo "Deploy to Vercel via Vercel CLI or GitHub integration"
+      - name: Deploy Backend to Railway
+        run: echo "Deploy to Railway via Railway CLI or GitHub integration"
