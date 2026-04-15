@@ -1,31 +1,10 @@
 {
   "version": 2,
-  "buildCommand": "npm -v && cd frontend && npm install && npm run build",
+  "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
   "routes": [
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
-
-
-
-
-{
-  "version": 2,
-  "builds": [
-    {
-      "src": "frontend",
-      "use": "@vercel/node",
-      "config": {
-        "zeroConfig": true
-      }
-    }
-  ]
-}
-
-
-{
-  "buildCommand": "npm run build",
-  "outputDirectory": ".next"
 }
