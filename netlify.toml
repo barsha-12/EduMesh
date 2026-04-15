@@ -1,0 +1,16 @@
+[build]
+  command = "cd frontend && npm install && npm run build"
+  publish = "frontend/dist"
+
+[context.production]
+  environment = {VITE_SUPABASE_URL = "", VITE_SUPABASE_ANON_KEY = "", VITE_GROQ_API_KEY = ""}
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
