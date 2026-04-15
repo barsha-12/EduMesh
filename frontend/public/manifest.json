@@ -1,11 +1,11 @@
 {
   "name": "EduMesh",
   "short_name": "EduMesh",
-  "description": "Decentralized, AI-Personalized Learning for the Unconnected World",
+  "description": "EduMesh — Your AI Research & Thinking Partner",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#0f87e9",
+  "background_color": "#F7F5E8",
+  "theme_color": "#E8A2A2",
   "orientation": "any",
   "icons": [
     {
@@ -21,6 +21,6 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["education"],
+  "categories": ["research", "productivity", "education"],
   "lang": "en"
 }

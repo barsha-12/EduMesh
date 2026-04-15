@@ -1,7 +1,7 @@
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
-let chatHistory = [];
+// Removed volatile global chatHistory array
 
 /**
  * Send a message to Groq AI and get a response.
@@ -44,10 +44,15 @@ async function callGroq(messages, temperature = 0.7, maxTokens = 2048) {
 }
 
 /**
- * Send a chat message with conversation memory.
+ * Send a chat message with conversation memory provided externally.
  */
-export async function sendChatMessage(message) {
-  chatHistory.push({ role: 'user', content: message });
+export async function sendChatMessage(message, externalHistory = []) {
+  // Format the external history for Groq ({role: 'user'|'assistant', content: string})
+  // Usually externalHistory from our store is {role: 'user'|'ai', text: string}
+  const formattedHistory = externalHistory.map(msg => ({
+    role: msg.role === 'ai' ? 'assistant' : 'user',
+    content: msg.text
+  }));
 
   // Keep system prompt + last 20 messages to avoid token limits
   const messages = [
@@ -55,19 +60,43 @@ export async function sendChatMessage(message) {
       role: 'system',
       content: 'You are EduMesh AI — a friendly, helpful study tutor for college students. Answer clearly with examples. Use markdown formatting for structure (headers, bold, bullet points, code blocks). Keep responses concise but thorough. Use simple language and analogies to explain complex topics.'
     },
-    ...chatHistory.slice(-20),
+    ...formattedHistory.slice(-20),
+    { role: 'user', content: message } // Push the newest message
   ];
 
-  const reply = await callGroq(messages);
-  chatHistory.push({ role: 'assistant', content: reply });
-  return reply;
+  return await callGroq(messages);
 }
 
 /**
- * Reset chat session (new conversation).
+ * Generate structural JSON map nodes for the Mind Tree.
  */
-export function resetChat() {
-  chatHistory = [];
+export async function generateMindTree(topic) {
+  const messages = [
+    {
+      role: 'system',
+      content: 'You are a graph node builder. You ONLY output valid JSON arrays. Do not return markdown, just raw JSON.'
+    },
+    {
+      role: 'user',
+      content: `Construct a Mind Map for the topic: "${topic}". 
+Return exactly a valid JSON array of node objects. Each object MUST have:
+- "id": unique string identifier (e.g. "root", "n1", "n2")
+- "label": short, punchy title for the node concept
+- "parentId": the id of the parent node (use null for the root node)
+
+Include exactly 7-10 nodes branching logically from the root topic. Return ONLY the JSON.`
+    }
+  ];
+
+  const reply = await callGroq(messages, 0.4, 3000);
+
+  try {
+    const cleaned = reply.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch (error) {
+    console.error('MindTree parse error:', error, 'Raw:', reply);
+    return null;
+  }
 }
 
 /**

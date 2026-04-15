@@ -14,11 +14,11 @@ const navItems = [
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout, user } = useAuthStore();
+  const { signOut, user } = useAuthStore();
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login');
+    await signOut();
+    navigate('/');
   };
 
   const displayName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'Student';

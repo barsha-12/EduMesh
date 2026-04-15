@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="EduMesh — Decentralized, AI-Personalized Learning for the Unconnected World" />
-    <title>EduMesh — Learn Without Limits</title>
+    <meta name="description" content="EduMesh — Your AI Research & Thinking Partner" />
+    <title>EduMesh — Synthesize Without Limits</title>
     <link rel="manifest" href="/manifest.json" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -12,6 +12,19 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   </head>
   <body class="bg-surface-50 dark:bg-surface-950 text-surface-900 dark:text-surface-50">
+    <script>
+      window.onerror = function(message, source, lineno, colno, error) {
+        document.body.innerHTML = `
+          <div style="background:#1a1a1a; color:#ff4d4d; padding:40px; font-family:monospace; height:100vh; overflow:auto;">
+            <h1 style="color:#ff8080">FATAL REACT ERROR</h1>
+            <p style="font-size:18px"><b>Message:</b> ${message}</p>
+            <p><b>Source:</b> ${source}:${lineno}:${colno}</p>
+            <pre style="background:#000; padding:20px; border-radius:8px; margin-top:20px; border:1px solid #333">${error ? error.stack : 'No stack trace'}</pre>
+            <button onclick="window.location.reload()" style="background:#333; color:white; border:none; padding:10px 20px; border-radius:4px; cursor:pointer; margin-top:20px;">Retry</button>
+          </div>
+        `;
+      };
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

@@ -6,7 +6,7 @@ import { LogIn, UserPlus, Sparkles, BookOpen, Brain, MessageSquare } from 'lucid
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login, register, loginWithGoogle, demoLogin, isLoading, error, clearError, isAuthenticated } = useAuthStore();
+  const { signIn: login, signUp: register, signInWithGoogle: loginWithGoogle, signInAsDemo: demoLogin, isLoading, error, clearError, isAuthenticated } = useAuthStore();
   const [isRegister, setIsRegister] = useState(false);
   const [form, setForm] = useState({ email: '', password: '', displayName: '' });
 
@@ -30,13 +30,13 @@ export default function Login() {
   };
 
   const features = [
-    { icon: MessageSquare, label: 'AI Study Chat', desc: 'Ask doubts instantly', color: 'text-indigo-400' },
-    { icon: BookOpen, label: 'Smart Notes', desc: 'AI-generated notes', color: 'text-purple-400' },
-    { icon: Brain, label: 'Quiz Practice', desc: 'Test your knowledge', color: 'text-pink-400' },
+    { icon: MessageSquare, label: 'AI Study Chat', desc: 'Ask doubts instantly', color: 'text-[#A0C2D2]' },
+    { icon: BookOpen, label: 'Smart Notes', desc: 'AI-generated notes', color: 'text-[#E8A2A2]' },
+    { icon: Brain, label: 'Quiz Practice', desc: 'Test your knowledge', color: 'text-[#EAC7C7]' },
   ];
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center p-6">
+    <div className="relative min-h-screen flex items-center justify-center p-6 bg-[#F7F5E8] dark:bg-[#1c1a16] selection:bg-[#EAC7C7]">
       <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
 
         {/* Left: Branding */}
@@ -50,16 +50,16 @@ export default function Login() {
             <motion.div
               initial={{ scale: 0.8 }}
               animate={{ scale: 1 }}
-              className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25"
+              className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#E8A2A2] to-[#A0C2D2] flex items-center justify-center shadow-lg shadow-[#E8A2A2]/25"
             >
               <Sparkles className="text-white w-10 h-10" />
             </motion.div>
             <h1 className="text-5xl font-bold tracking-tight leading-tight" style={{ fontFamily: 'Outfit, sans-serif' }}>
               <span className="text-gradient">EduMesh</span>
               <br />
-              <span className="text-white">Study Buddy.</span>
+              <span className="text-gray-900 dark:text-white">Study Buddy.</span>
             </h1>
-            <p className="text-lg text-white/50 max-w-md leading-relaxed">
+            <p className="text-lg text-gray-500 dark:text-white/50 max-w-md leading-relaxed">
               Your AI-powered study companion. Get instant explanations, generate smart notes, and practice with quizzes — all in one place.
             </p>
           </div>
@@ -71,14 +71,14 @@ export default function Login() {
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 + i * 0.1 }}
-                className="glass-card !p-4 !rounded-xl flex items-center gap-4"
+                className="m3-card !p-4 !rounded-xl flex items-center gap-4"
               >
-                <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center">
                   <f.icon className={`w-5 h-5 ${f.color}`} />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white">{f.label}</p>
-                  <p className="text-xs text-white/40">{f.desc}</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{f.label}</p>
+                  <p className="text-xs text-gray-500 dark:text-white/40">{f.desc}</p>
                 </div>
               </motion.div>
             ))}
@@ -91,17 +91,17 @@ export default function Login() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
         >
-          <div className="glass-card max-w-md mx-auto !p-8">
+          <div className="m3-card max-w-md mx-auto !p-8">
             <div className="space-y-6">
               {/* Header */}
               <div className="text-center space-y-2">
-                <div className="lg:hidden w-12 h-12 mx-auto mb-4 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                <div className="lg:hidden w-12 h-12 mx-auto mb-4 rounded-xl bg-gradient-to-br from-[#E8A2A2] to-[#A0C2D2] flex items-center justify-center">
                   <Sparkles className="text-white w-6 h-6" />
                 </div>
                 <h2 className="text-2xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
                   {isRegister ? 'Create Account' : 'Welcome Back'}
                 </h2>
-                <p className="text-sm text-white/40">
+                <p className="text-sm text-gray-500 dark:text-white/40">
                   {isRegister ? 'Start your learning journey' : 'Sign in to continue studying'}
                 </p>
               </div>
@@ -113,7 +113,7 @@ export default function Login() {
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center"
+                    className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 text-sm text-center"
                   >
                     {error}
                   </motion.div>
@@ -129,7 +129,7 @@ export default function Login() {
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                     >
-                      <label className="block text-xs font-medium text-white/50 mb-1.5 ml-1">Full Name</label>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5 ml-1">Full Name</label>
                       <input
                         type="text"
                         className="input-field"
@@ -143,7 +143,7 @@ export default function Login() {
                 </AnimatePresence>
 
                 <div>
-                  <label className="block text-xs font-medium text-white/50 mb-1.5 ml-1">Email</label>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5 ml-1">Email</label>
                   <input
                     type="email"
                     className="input-field"
@@ -155,7 +155,7 @@ export default function Login() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-white/50 mb-1.5 ml-1">Password</label>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5 ml-1">Password</label>
                   <input
                     type="password"
                     className="input-field"
@@ -170,10 +170,10 @@ export default function Login() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="btn-primary w-full flex items-center justify-center gap-2 !py-3"
+                  className="btn-primary w-full flex items-center justify-center gap-2 !py-3 bg-[#E8A2A2] hover:bg-[#A0C2D2] text-[#2c2c2c] border-transparent"
                 >
                   {isLoading ? (
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <div className="w-5 h-5 border-2 border-[#2c2c2c]/30 border-t-[#2c2c2c] rounded-full animate-spin" />
                   ) : (
                     <>
                       {isRegister ? <UserPlus className="w-4 h-4" /> : <LogIn className="w-4 h-4" />}
@@ -186,18 +186,21 @@ export default function Login() {
               {/* Divider */}
               <div className="relative py-2">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-white/10"></div>
+                  <div className="w-full border-t border-black/10 dark:border-white/10"></div>
                 </div>
                 <div className="relative flex justify-center text-xs">
-                  <span className="px-3 bg-[#0a0a1a] text-white/30">or</span>
+                  <span className="px-3 bg-transparent text-gray-400 dark:text-white/30">or</span>
                 </div>
               </div>
 
               {/* Demo Mode Bypass */}
               <button
                 type="button"
-                onClick={() => { demoLogin(); navigate('/dashboard'); }}
-                className="w-full py-3 rounded-xl bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 font-medium flex items-center justify-center gap-2 hover:bg-indigo-500/30 hover:text-white transition-all text-sm mb-2"
+                onClick={async () => { 
+                  const res = await demoLogin(); 
+                  if (!res.error) navigate('/dashboard'); 
+                }}
+                className="w-full py-3 rounded-xl bg-[#E8A2A2]/10 border border-[#E8A2A2]/30 text-[#2c2c2c] dark:text-[#E8A2A2] font-semibold flex items-center justify-center gap-2 hover:bg-[#E8A2A2]/20 transition-all text-sm mb-2"
               >
                 <Sparkles className="w-4 h-4" />
                 Quick Demo Login (Bypass Auth)
@@ -207,7 +210,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => loginWithGoogle()}
-                className="w-full py-3 rounded-xl bg-white/5 border border-white/10 font-medium flex items-center justify-center gap-3 hover:bg-white/10 transition-all text-sm text-white/80"
+                className="w-full py-3 rounded-xl bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 font-medium flex items-center justify-center gap-3 hover:bg-gray-50 dark:hover:bg-white/10 transition-all text-sm text-gray-800 dark:text-white/80 shadow-sm"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -219,11 +222,11 @@ export default function Login() {
               </button>
 
               {/* Toggle */}
-              <p className="text-center text-sm text-white/40">
+              <p className="text-center text-sm text-gray-500 dark:text-white/40">
                 {isRegister ? 'Already have an account? ' : "Don't have an account? "}
                 <button
                   onClick={() => { setIsRegister(!isRegister); clearError(); }}
-                  className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
+                  className="text-[#E8A2A2] hover:text-[#A0C2D2] font-semibold transition-colors"
                 >
                   {isRegister ? 'Sign In' : 'Sign Up'}
                 </button>

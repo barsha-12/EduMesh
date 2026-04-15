@@ -5,6 +5,14 @@ export default {
   theme: {
     extend: {
       colors: {
+        v: {
+          primary: '#E8A2A2',
+          secondary: '#A0C2D2',
+          bg: '#F7F5E8',
+          surface: '#EAE0DA',
+          accent: '#EAC7C7',
+          info: '#D5E3E8',
+        },
         brand: {
           50: '#f0f7ff',
           100: '#e0effe',

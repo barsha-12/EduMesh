@@ -1,89 +1,170 @@
 import { create } from 'zustand';
+import { supabase } from '../lib/supabase';
 
 /**
- * Study store — manages chat messages, saved notes, quiz history, and stats.
- * All data is kept in local state (no backend needed for demo).
+ * EduMesh Neural Store
+ * Manages notebooks, sources, chat, and studio outputs with persistent sync.
  */
 export const useStudyStore = create((set, get) => ({
+  // Notebooks
+  notebooks: JSON.parse(localStorage.getItem('edumesh-notebooks') || '[]'),
+
+  addNotebook: (notebook) => {
+    set((state) => {
+      const updated = [notebook, ...state.notebooks];
+      localStorage.setItem('edumesh-notebooks', JSON.stringify(updated));
+      return { notebooks: updated };
+    });
+  },
+
+  updateNotebook: (id, updates) => {
+    set((state) => {
+      const updated = state.notebooks.map(nb => nb.id === id ? { ...nb, ...updates } : nb);
+      localStorage.setItem('edumesh-notebooks', JSON.stringify(updated));
+      return { notebooks: updated };
+    });
+  },
+
+  deleteNotebook: (id) => {
+    set((state) => {
+      const updated = state.notebooks.filter(nb => nb.id !== id);
+      const updatedSources = state.sources.filter(s => s.notebookId !== id);
+      localStorage.setItem('edumesh-notebooks', JSON.stringify(updated));
+      localStorage.setItem('edumesh-sources', JSON.stringify(updatedSources));
+      return { notebooks: updated, sources: updatedSources };
+    });
+  },
+
+  // Sources
+  sources: JSON.parse(localStorage.getItem('edumesh-sources') || '[]'),
+
+  addSource: (source) => {
+    set((state) => {
+      const updated = [...state.sources, { ...source, id: Date.now().toString(), isSelected: true }];
+      localStorage.setItem('edumesh-sources', JSON.stringify(updated));
+      return { sources: updated };
+    });
+  },
+
+  toggleSource: (id) => {
+    set((state) => {
+      const updated = state.sources.map(s => s.id === id ? { ...s, isSelected: !s.isSelected } : s);
+      localStorage.setItem('edumesh-sources', JSON.stringify(updated));
+      return { sources: updated };
+    });
+  },
+
+  deleteSource: (id) => {
+    set((state) => {
+      const updated = state.sources.filter(s => s.id !== id);
+      localStorage.setItem('edumesh-sources', JSON.stringify(updated));
+      return { sources: updated };
+    });
+  },
+
   // Chat
   chatMessages: [],
   isChatLoading: false,
 
-  addChatMessage: (message) =>
-    set((state) => ({
-      chatMessages: [...state.chatMessages, message],
-    })),
+  setChatMessages: (messages) => set({ chatMessages: Array.isArray(messages) ? messages : [] }),
+
+  addChatMessage: async (message) => {
+    set((state) => ({ chatMessages: [...state.chatMessages, message] }));
+
+    // Sync to Supabase in background
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      await supabase.from('chat_history').insert([{
+        user_id: session.user.id,
+        role: message.role,
+        text: message.text,
+        timestamp: new Date(message.timestamp).toISOString()
+      }]);
+    }
+  },
+
+  loadChatHistory: async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+
+    const { data, error } = await supabase
+      .from('chat_history')
+      .select('*')
+      .order('timestamp', { ascending: true });
+
+    if (!error && data) {
+      set({
+        chatMessages: data.map(m => ({
+          role: m.role,
+          text: m.text,
+          timestamp: new Date(m.timestamp).getTime()
+        }))
+      });
+    }
+  },
 
   setChatLoading: (loading) => set({ isChatLoading: loading }),
 
-  clearChat: () => set({ chatMessages: [] }),
+  clearChat: async () => {
+    set({ chatMessages: [] });
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      await supabase.from('chat_history').delete().eq('user_id', session.user.id);
+    }
+  },
 
-  // Notes
+  // Studio Outputs
   savedNotes: JSON.parse(localStorage.getItem('edumesh-notes') || '[]'),
 
-  saveNote: (note) =>
+  saveNote: async (note) => {
     set((state) => {
       const updated = [note, ...state.savedNotes];
       localStorage.setItem('edumesh-notes', JSON.stringify(updated));
       return { savedNotes: updated };
-    }),
+    });
 
-  deleteNote: (id) =>
-    set((state) => {
-      const updated = state.savedNotes.filter((n) => n.id !== id);
-      localStorage.setItem('edumesh-notes', JSON.stringify(updated));
-      return { savedNotes: updated };
-    }),
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      await supabase.from('notes').insert([{
+        user_id: session.user.id,
+        subject: note.subject,
+        topic: note.topic,
+        content: note.content,
+        created_at: note.createdAt
+      }]);
+    }
+  },
 
   // Quiz
   quizHistory: JSON.parse(localStorage.getItem('edumesh-quizzes') || '[]'),
 
-  saveQuizResult: (result) =>
+  saveQuizResult: async (result) => {
     set((state) => {
       const updated = [result, ...state.quizHistory];
       localStorage.setItem('edumesh-quizzes', JSON.stringify(updated));
       return { quizHistory: updated };
-    }),
+    });
 
-  // Study Stats
-  studyStats: JSON.parse(localStorage.getItem('edumesh-stats') || JSON.stringify({
-    totalStudyMinutes: 0,
-    totalNotes: 0,
-    totalQuizzes: 0,
-    totalCorrectAnswers: 0,
-    totalQuestions: 0,
-    streak: 0,
-    lastStudyDate: null,
-    subjectsStudied: [],
-  })),
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      await supabase.from('quiz_results').insert([{
+        user_id: session.user.id,
+        subject: result.subject,
+        topic: result.topic,
+        score: result.score,
+        correct_count: result.correct,
+        total_count: result.total,
+        created_at: result.createdAt
+      }]);
+    }
+  },
 
-  updateStats: (updates) =>
-    set((state) => {
-      const newStats = { ...state.studyStats, ...updates };
+  // Global Sync (Initial Load)
+  syncFromSupabase: async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
 
-      // Update streak
-      const today = new Date().toDateString();
-      const lastDate = state.studyStats.lastStudyDate;
-      if (lastDate !== today) {
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        if (lastDate === yesterday.toDateString()) {
-          newStats.streak = (state.studyStats.streak || 0) + 1;
-        } else if (lastDate !== today) {
-          newStats.streak = 1;
-        }
-        newStats.lastStudyDate = today;
-      }
-
-      localStorage.setItem('edumesh-stats', JSON.stringify(newStats));
-      return { studyStats: newStats };
-    }),
-
-  addSubjectStudied: (subject) =>
-    set((state) => {
-      const subjects = [...new Set([...state.studyStats.subjectsStudied, subject])];
-      const newStats = { ...state.studyStats, subjectsStudied: subjects };
-      localStorage.setItem('edumesh-stats', JSON.stringify(newStats));
-      return { studyStats: newStats };
-    }),
+    // Sync logic for notes/quizzes/notebooks
+    // (Simplified for MVP, primarily relying on LocalStorage for notebook structure)
+  }
 }));

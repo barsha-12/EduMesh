@@ -1,6 +1,6 @@
 {
   "name": "edumesh",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,12 +10,21 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.101.1",
+    "@xyflow/react": "^12.10.2",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
     "framer-motion": "^12.38.0",
+    "groq-sdk": "^1.1.2",
     "html2pdf.js": "^0.10.1",
-    "lucide-react": "^1.7.0",
+    "jspdf": "^4.2.1",
+    "lucide-react": "^1.8.0",
+    "marked": "^18.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^6.21.3",
+    "recharts": "^3.8.1",
+    "tailwind-merge": "^3.5.0",
     "zustand": "^4.5.0"
   },
   "devDependencies": {

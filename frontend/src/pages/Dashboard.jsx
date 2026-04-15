@@ -1,17 +1,19 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { useAuthStore } from '../store/authStore';
 import { useStudyStore } from '../store/studyStore';
-import Navbar from '../components/ui/Navbar';
-import GlassCard from '../components/ui/GlassCard';
-import { MessageSquare, FileText, Brain, Flame, Clock, Trophy, BookOpen, ArrowRight, Sparkles, Target } from 'lucide-react';
+import { useAuthStore } from '../store/authStore';
+import { Link } from 'react-router-dom';
+import { MessageSquare, FileText, Brain, Flame, Clock, Trophy, BookOpen, ArrowRight, Sparkles, Target, BarChart2, Plus } from 'lucide-react';
 
 export default function Dashboard() {
   const { user } = useAuthStore();
-  const { studyStats, savedNotes, quizHistory } = useStudyStore();
+  const { studyStats, savedNotes, quizHistory, syncFromSupabase } = useStudyStore();
 
   const displayName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'Student';
+
+  useEffect(() => {
+    syncFromSupabase();
+  }, []);
 
   const quickActions = [
     {
@@ -58,10 +60,8 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen">
-      <Navbar />
-
-      <main className="max-w-6xl mx-auto px-6 pt-24 pb-16">
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#050510]">
+      <main className="max-w-7xl mx-auto px-6 py-8 sm:py-12">
         <motion.div
           variants={containerVariants}
           initial="hidden"
@@ -82,130 +82,121 @@ export default function Dashboard() {
           </motion.div>
 
           {/* Stats Grid */}
-          <motion.div variants={itemVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <motion.div variants={itemVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-6">
             {stats.map((stat, i) => (
-              <GlassCard key={i} className="!p-4 !rounded-xl">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl ${stat.bgColor} flex items-center justify-center`}>
-                    <stat.icon className={`w-5 h-5 ${stat.color}`} />
-                  </div>
-                  <div>
-                    <p className="text-xl font-bold text-white">{stat.value}</p>
-                    <p className="text-[11px] text-white/40 font-medium">{stat.label}</p>
-                  </div>
+              <div key={i} className="m3-card !p-5 flex flex-col gap-4">
+                <div className={`w-12 h-12 rounded-2xl ${stat.bgColor} flex items-center justify-center shrink-0`}>
+                  <stat.icon className={`w-6 h-6 ${stat.color}`} />
                 </div>
-              </GlassCard>
+                <div>
+                  <p className="text-2xl font-bold tracking-tight">{stat.value}</p>
+                  <p className="text-sm text-gray-400 font-medium">{stat.label}</p>
+                </div>
+              </div>
             ))}
           </motion.div>
 
           {/* Quick Actions */}
-          <motion.div variants={itemVariants} className="space-y-4">
-            <h2 className="text-lg font-semibold text-white/80" style={{ fontFamily: 'Outfit, sans-serif' }}>
-              Quick Actions
+          <motion.div variants={itemVariants} className="space-y-6">
+            <h2 className="text-xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
+              Study Command Center
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {quickActions.map((action, i) => (
-                <Link key={i} to={action.link}>
-                  <GlassCard className="!p-0 !rounded-2xl overflow-hidden h-full group">
-                    <div className="p-6 space-y-4">
+                <Link key={i} to={action.link} className="flex flex-col">
+                  <div className="m3-card !p-0 overflow-hidden h-full group flex flex-col">
+                    <div className="p-8 flex-1 space-y-6">
                       <div className="flex items-start justify-between">
-                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                          <action.icon className="w-6 h-6 text-white" />
+                        <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${action.color} flex items-center justify-center shadow-xl shadow-indigo-500/10 group-hover:scale-110 transition-transform duration-500`}>
+                          <action.icon className="w-7 h-7 text-white" />
                         </div>
                         {action.badge && (
-                          <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                          <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-500 uppercase tracking-widest border border-indigo-500/10">
                             {action.badge}
                           </span>
                         )}
                       </div>
                       <div>
-                        <h3 className="text-lg font-bold text-white group-hover:text-indigo-300 transition-colors">
+                        <h3 className="text-xl font-bold group-hover:text-indigo-500 transition-colors">
                           {action.title}
                         </h3>
-                        <p className="text-sm text-white/40 mt-1">{action.desc}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">{action.desc}</p>
                       </div>
                     </div>
-                    <div className="px-6 py-3 bg-white/[0.02] border-t border-white/5 flex items-center justify-between">
-                      <span className="text-xs text-white/30 font-medium">Get started</span>
-                      <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" />
+                    <div className="px-8 py-4 bg-black/[0.02] dark:bg-white/[0.02] border-t border-gray-100 dark:border-white/5 flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Launch Module</span>
+                      <ArrowRight className="w-5 h-5 text-gray-300 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
                     </div>
-                  </GlassCard>
+                  </div>
                 </Link>
               ))}
             </div>
           </motion.div>
 
-          {/* Recent Activity */}
-          <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Activity Section */}
+          <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Recent Notes */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-white/80" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                  Recent Notes
-                </h2>
-                <Link to="/notes" className="text-xs text-indigo-400 hover:text-indigo-300 font-medium">
-                  View All →
-                </Link>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between px-2">
+                <h2 className="text-xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>Recent Material</h2>
+                <Link to="/notes" className="text-sm text-indigo-500 hover:text-indigo-600 font-bold">View Library →</Link>
               </div>
               {savedNotes.length === 0 ? (
-                <GlassCard className="!rounded-xl text-center !py-10">
-                  <BookOpen className="w-10 h-10 text-white/10 mx-auto mb-3" />
-                  <p className="text-sm text-white/30">No notes yet. Generate your first study notes!</p>
-                  <Link to="/notes" className="btn-primary inline-flex items-center gap-2 mt-4 !text-xs !px-4 !py-2">
-                    <FileText size={14} /> Create Notes
+                <div className="m3-card text-center !py-16">
+                  <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center mx-auto mb-6">
+                    <BookOpen className="w-8 h-8 text-gray-300" />
+                  </div>
+                  <p className="text-gray-500 dark:text-gray-400">No study material generated yet.</p>
+                  <Link to="/notes" className="btn-primary mt-6 inline-flex mx-auto">
+                    <Plus size={18} /> Create Notes
                   </Link>
-                </GlassCard>
+                </div>
               ) : (
-                <div className="space-y-3">
-                  {savedNotes.slice(0, 3).map((note, i) => (
-                    <GlassCard key={note.id || i} className="!p-4 !rounded-xl">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="font-semibold text-sm text-white">{note.topic}</p>
-                          <p className="text-xs text-white/40 mt-0.5">{note.subject} • {new Date(note.createdAt).toLocaleDateString()}</p>
-                        </div>
-                        <span className="text-[10px] px-2 py-1 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                          Note
-                        </span>
+                <div className="grid grid-cols-1 gap-4">
+                  {savedNotes.slice(0, 3).map((note) => (
+                    <div key={note.id} className="m3-card !p-5 flex items-center gap-4 group cursor-pointer">
+                      <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center shrink-0">
+                        <FileText className="w-6 h-6 text-purple-500" />
                       </div>
-                    </GlassCard>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold truncate">{note.topic}</p>
+                        <p className="text-xs text-gray-400 mt-1">{note.subject} • {new Date(note.createdAt).toLocaleDateString()}</p>
+                      </div>
+                      <ArrowRight className="w-5 h-5 text-gray-200 group-hover:text-purple-500 group-hover:translate-x-1 transition-all" />
+                    </div>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Recent Quizzes */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-white/80" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                  Recent Quizzes
-                </h2>
-                <Link to="/quiz" className="text-xs text-indigo-400 hover:text-indigo-300 font-medium">
-                  View All →
-                </Link>
+            {/* Performance */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between px-2">
+                <h2 className="text-xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>Quiz History</h2>
+                <Link to="/quiz" className="text-sm text-indigo-500 hover:text-indigo-600 font-bold">Analytics →</Link>
               </div>
               {quizHistory.length === 0 ? (
-                <GlassCard className="!rounded-xl text-center !py-10">
-                  <Brain className="w-10 h-10 text-white/10 mx-auto mb-3" />
-                  <p className="text-sm text-white/30">No quizzes taken yet. Test your knowledge!</p>
-                  <Link to="/quiz" className="btn-primary inline-flex items-center gap-2 mt-4 !text-xs !px-4 !py-2">
-                    <Brain size={14} /> Start Quiz
+                <div className="m3-card text-center !py-16">
+                  <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center mx-auto mb-6">
+                    <Brain className="w-8 h-8 text-gray-300" />
+                  </div>
+                  <p className="text-gray-500 dark:text-gray-400">Take a quiz to see your performance stats.</p>
+                  <Link to="/quiz" className="btn-primary mt-6 inline-flex mx-auto">
+                    Take Quiz
                   </Link>
-                </GlassCard>
+                </div>
               ) : (
-                <div className="space-y-3">
-                  {quizHistory.slice(0, 3).map((quiz, i) => (
-                    <GlassCard key={quiz.id || i} className="!p-4 !rounded-xl">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold text-sm text-white">{quiz.topic}</p>
-                          <p className="text-xs text-white/40 mt-0.5">{quiz.subject} • {new Date(quiz.createdAt).toLocaleDateString()}</p>
-                        </div>
-                        <div className={`text-lg font-bold ${quiz.score >= 70 ? 'text-emerald-400' : quiz.score >= 40 ? 'text-amber-400' : 'text-red-400'}`}>
-                          {quiz.score}%
-                        </div>
+                <div className="grid grid-cols-1 gap-4">
+                  {quizHistory.slice(0, 3).map((quiz) => (
+                    <div key={quiz.id} className="m3-card !p-5 flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center shrink-0 text-xl font-bold text-indigo-500">
+                        {quiz.score}%
                       </div>
-                    </GlassCard>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold truncate">{quiz.topic}</p>
+                        <p className="text-xs text-gray-400 mt-1">{quiz.subject} • {quiz.correct}/{quiz.total} correct</p>
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
