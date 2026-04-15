@@ -1,88 +1,99 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import api from '../services/api';
+import { supabase } from '../lib/supabase';
 
-/**
- * Auth store — manages user authentication state, tokens, and login/logout flows.
- */
-export const useAuthStore = create(
-  persist(
-    (set, get) => ({
-      user: null,
-      accessToken: null,
-      isAuthenticated: false,
-      isLoading: false,
-      error: null,
+export const useAuthStore = create((set) => ({
+  user: null,
+  session: null,
+  isAuthenticated: false,
+  isLoading: false,
+  isInitializing: true,
+  error: null,
 
-      /**
-       * Register a new user account.
-       */
-      register: async ({ email, password, displayName, role, language }) => {
-        set({ isLoading: true, error: null });
-        try {
-          const res = await api.post('/auth/register', { email, password, displayName, role, language });
-          const { user, accessToken } = res.data.data;
-          set({ user, accessToken, isAuthenticated: true, isLoading: false });
-          return res.data;
-        } catch (err) {
-          const msg = err.response?.data?.message || 'Registration failed';
-          set({ isLoading: false, error: msg });
-          throw new Error(msg);
-        }
-      },
+  initializeAuth: async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    set({
+      session,
+      user: session?.user || null,
+      isAuthenticated: !!session,
+      isInitializing: false,
+    });
 
-      /**
-       * Log in with email and password.
-       */
-      login: async ({ email, password }) => {
-        set({ isLoading: true, error: null });
-        try {
-          const res = await api.post('/auth/login', { email, password });
-          const { user, accessToken } = res.data.data;
-          set({ user, accessToken, isAuthenticated: true, isLoading: false });
-          return res.data;
-        } catch (err) {
-          const msg = err.response?.data?.message || 'Login failed';
-          set({ isLoading: false, error: msg });
-          throw new Error(msg);
-        }
-      },
+    supabase.auth.onAuthStateChange((_event, session) => {
+      set({
+        session,
+        user: session?.user || null,
+        isAuthenticated: !!session,
+        isInitializing: false,
+      });
+    });
+  },
 
-      /**
-       * Log out and clear all auth state.
-       */
-      logout: async () => {
-        try {
-          await api.post('/auth/logout');
-        } catch {
-          // Silently handle — still clear local state
-        }
-        set({ user: null, accessToken: null, isAuthenticated: false });
-      },
-
-      /**
-       * Refresh the access token.
-       */
-      refreshToken: async () => {
-        try {
-          const res = await api.post('/auth/refresh');
-          set({ accessToken: res.data.data.accessToken });
-          return res.data.data.accessToken;
-        } catch {
-          get().logout();
-          return null;
-        }
-      },
-
-      clearError: () => set({ error: null }),
-    }),
-    {
-      name: 'edumesh-auth',
-      partialize: (state) => ({
-        user: state.user,
-        accessToken: state.accessToken,
-        isAuthenticated: state.isAuthenticated,
-      }),
+  register: async ({ email, password, displayName }) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { display_name: displayName },
+        },
+      });
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      set({ error: err.message });
+      throw err;
+    } finally {
+      set({ isLoading: false });
     }
-  )
-);
+  },
+
+  login: async ({ email, password }) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      set({ error: err.message });
+      throw err;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  loginWithGoogle: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin + '/dashboard' },
+      });
+      if (error) throw error;
+    } catch (err) {
+      set({ error: err.message });
+      set({ isLoading: false });
+    }
+  },
+
+  logout: async () => {
+    await supabase.auth.signOut();
+    set({ user: null, session: null, isAuthenticated: false });
+  },
+
+  demoLogin: () => {
+    set({
+      user: {
+        id: 'demo-1234',
+        email: 'student@edumesh.demo',
+        user_metadata: { display_name: 'Demo Student' }
+      },
+      session: { access_token: 'fake-demo-token' },
+      isAuthenticated: true,
+      isLoading: false,
+      error: null
+    });
+  },
+
+  clearError: () => set({ error: null }),
+}));

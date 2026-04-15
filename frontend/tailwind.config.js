@@ -63,6 +63,10 @@ export default {
         'fade-in': 'fadeIn 0.5s ease-out',
         'slide-up': 'slideUp 0.4s ease-out',
         'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
+        'float': 'float 6s ease-in-out infinite',
+        'orbit': 'orbit 20s linear infinite',
+        'spin-slow': 'spin 8s linear infinite',
+        'tilt': 'tilt 10s infinite linear',
       },
       keyframes: {
         fadeIn: {
@@ -77,7 +81,25 @@ export default {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.7' },
         },
+        float: {
+          '0%, 100%': { transform: 'translateY(0) rotate(0deg)' },
+          '50%': { transform: 'translateY(-20px) rotate(2deg)' },
+        },
+        orbit: {
+          'from': { transform: 'rotate(0deg) translateX(100px) rotate(0deg)' },
+          'to': { transform: 'rotate(360deg) translateX(100px) rotate(-360deg)' },
+        },
+        tilt: {
+          '0%, 50%, 100%': { transform: 'rotate(0deg)' },
+          '25%': { transform: 'rotate(0.5deg)' },
+          '75%': { transform: 'rotate(-0.5deg)' },
+        }
       },
+      boxShadow: {
+        '3d': '0 20px 50px rgba(0, 0, 0, 0.15)',
+        '3d-hover': '0 40px 80px rgba(0, 0, 0, 0.25)',
+        'inner-glass': 'inset 0 0 20px rgba(255, 255, 255, 0.05)',
+      }
     },
   },
   plugins: [],
