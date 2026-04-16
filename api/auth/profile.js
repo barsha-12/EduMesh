@@ -20,7 +20,14 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Invalid session' });
   }
 
-  const db = await getDb();
+  let db;
+  try {
+    db = await getDb();
+  } catch (dbErr) {
+    console.error('DATABASE CONNECTION ERROR:', dbErr);
+    return res.status(500).json({ error: 'Database connection failed' });
+  }
+
   const users = db.collection('users');
 
   // GET: Fetch User Profile & Usage
