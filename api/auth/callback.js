@@ -100,7 +100,8 @@ export default async function handler(req, res) {
       path: '/'
     }));
 
-    const frontendUrl = process.env.VITE_FRONTEND_URL || 'http://localhost:3002';
+    // Smart detection: Use VITE_FRONTEND_URL if set, otherwise try to detect via headers (for Vercel)
+    const frontendUrl = process.env.VITE_FRONTEND_URL || (req.headers.host ? `https://${req.headers.host}` : 'http://localhost:3002');
     res.redirect(`${frontendUrl}/dashboard`);
   } catch (error) {
     console.error('OAuth error:', error);
