@@ -44,11 +44,14 @@ export default function Settings() {
         const data = await res.json();
         setProfile(data);
       } else {
-        setError('Failed to fetch elite profile. Ensure backend is running.');
+        const statusText = res.status === 401 ? 'Unauthorized (Please re-login)' : 
+                           res.status === 500 ? 'Server Configuration Error (Check DB/Keys)' :
+                           `Error Code: ${res.status}`;
+        setError(`Settings Sync Failed: ${statusText}`);
       }
     } catch (err) {
       console.error('Failed to fetch profile:', err);
-      setError('Connection refused. Please check your local server.');
+      setError('Connection refused. Please check if your deployment is fully active.');
     }
   };
 
