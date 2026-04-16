@@ -5,7 +5,21 @@ import { generateMindTree } from '../services/ai';
 import { Sparkles, Loader2, Network } from 'lucide-react';
 
 const initialNodes = [
-  { id: 'root', position: { x: 400, y: 300 }, data: { label: 'Enter a topic to generate a Mind Tree...' }, style: { background: '#F7F5E8', color: '#2c2c2c', borderRadius: '12px', padding: '15px', border: '2px solid #E8A2A2', fontWeight: 'bold' } }
+  { 
+    id: 'root', 
+    position: { x: 400, y: 300 }, 
+    data: { label: 'Enter a topic to plot your Mind Tree...' }, 
+    style: { 
+      background: 'var(--v-secondary)', 
+      color: 'var(--v-text)', 
+      borderRadius: '24px', 
+      padding: '24px', 
+      border: '1px solid var(--v-text-opacity-5)', 
+      fontWeight: 'bold',
+      fontFamily: 'Outfit',
+      boxShadow: '0 20px 40px -10px rgba(0,0,0,0.05)'
+    } 
+  }
 ];
 
 export default function MindTree() {
@@ -16,21 +30,30 @@ export default function MindTree() {
   const [error, setError] = useState(null);
 
   const calculateLayout = (dataNodes) => {
-    // A simple radial layout around a central root
     const mappedNodes = [];
     const mappedEdges = [];
     
-    // Find root
     const root = dataNodes.find(n => n.parentId === null) || dataNodes[0];
     mappedNodes.push({
       id: root.id,
       position: { x: 400, y: 300 },
       data: { label: root.label },
-      style: { background: '#A0C2D2', color: 'white', borderRadius: '16px', padding: '20px', border: 'none', fontWeight: '800', fontSize: '18px', boxShadow: '0 10px 25px -5px rgba(160, 194, 210, 0.4)' }
+      style: { 
+        background: 'var(--v-primary)', 
+        color: 'white', 
+        borderRadius: '32px', 
+        padding: '28px', 
+        border: 'none', 
+        fontWeight: '900', 
+        fontSize: '18px', 
+        fontFamily: 'Outfit',
+        boxShadow: '0 20px 50px -10px var(--v-primary-glow)',
+        textAlign: 'center'
+      }
     });
 
     const children = dataNodes.filter(n => n.id !== root.id);
-    const radius = 250;
+    const radius = 280;
     const angleStep = (2 * Math.PI) / children.length;
 
     children.forEach((child, index) => {
@@ -39,7 +62,18 @@ export default function MindTree() {
         id: child.id,
         position: { x: 400 + radius * Math.cos(angle), y: 300 + radius * Math.sin(angle) },
         data: { label: child.label },
-        style: { background: '#F7F5E8', color: '#2c2c2c', borderRadius: '10px', padding: '12px', border: '2px solid #E8A2A2', fontWeight: '600' }
+        style: { 
+          background: 'white', 
+          color: 'var(--v-text)', 
+          borderRadius: '20px', 
+          padding: '16px 24px', 
+          border: '1px solid var(--v-text-opacity-5)', 
+          fontWeight: '700',
+          fontSize: '14px',
+          boxShadow: '0 10px 30px -5px rgba(0,0,0,0.03)',
+          width: '180px',
+          textAlign: 'center'
+        }
       });
 
       mappedEdges.push({
@@ -47,7 +81,7 @@ export default function MindTree() {
         source: child.parentId || root.id,
         target: child.id,
         animated: true,
-        style: { stroke: '#E8A2A2', strokeWidth: 2 }
+        style: { stroke: 'var(--v-primary)', strokeWidth: 2, opacity: 0.3 }
       });
     });
 
@@ -55,7 +89,7 @@ export default function MindTree() {
   };
 
   const handleGenerate = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!input.trim() || isGenerating) return;
 
     setIsGenerating(true);
@@ -68,14 +102,14 @@ export default function MindTree() {
       setNodes(mappedNodes);
       setEdges(mappedEdges);
     } else {
-      setError("Failed to assemble the graph from the AI context. Please try again.");
+      setError("Synthesis failed. Neural patterns could not be mapped.");
     }
     
     setIsGenerating(false);
   };
 
   return (
-    <div className="w-full h-full min-h-[calc(100vh-100px)] relative bg-[#F7F5E8] dark:bg-[#1c1a16] rounded-3xl overflow-hidden border border-gray-100 dark:border-white/5 shadow-inner">
+    <div className="w-full h-full min-h-[calc(100vh-140px)] relative bg-v-bg rounded-[48px] overflow-hidden border border-v-text/5 shadow-2xl">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -84,28 +118,36 @@ export default function MindTree() {
         fitView
         className="w-full h-full"
       >
-        <Background color="#A0C2D2" gap={20} size={1} />
-        <Controls className="!bg-white dark:!bg-gray-800 !border-none !shadow-xl !rounded-xl overflow-hidden" />
+        <Background color="var(--v-primary)" gap={24} size={1} opacity={0.05} />
+        <Controls className="!bg-white !border-v-text/5 !shadow-2xl !rounded-2xl overflow-hidden !m-6" />
         
-        <Panel position="top-center" className="mt-6 w-full max-w-md pointer-events-auto">
-          <form onSubmit={handleGenerate} className="m3-card !p-2 flex gap-2 w-full shadow-2xl shadow-[#A0C2D2]/10 !rounded-2xl">
+        <Panel position="top-center" className="mt-8 w-full max-w-md pointer-events-auto px-4">
+          <form onSubmit={handleGenerate} className="bg-white/80 backdrop-blur-2xl p-2 flex gap-2 w-full shadow-2xl shadow-v-primary/10 rounded-[28px] border border-v-text/5">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="E.g., Quantum Physics, Cellular Respiration..."
-              className="flex-1 bg-transparent px-4 py-2 outline-none text-gray-700 dark:text-gray-100 placeholder-gray-400 font-medium"
+              placeholder="Topic to synthesize..."
+              className="flex-1 bg-transparent px-6 py-2 outline-none text-v-text placeholder-v-text/20 font-bold text-sm"
             />
             <button
               type="submit"
               disabled={isGenerating || !input.trim()}
-              className="px-6 py-2 bg-[#E8A2A2] hover:bg-[#d88f8f] disabled:opacity-50 text-white rounded-xl font-bold transition-all flex items-center gap-2"
+              className="px-6 py-3 bg-v-primary hover:scale-[1.02] active:scale-95 disabled:opacity-50 text-white rounded-[20px] font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg shadow-v-primary/20"
             >
               {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Network className="w-4 h-4" />}
               Plot
             </button>
           </form>
-          {error && <div className="mt-2 text-center text-xs font-bold text-red-500 bg-red-100 py-1 px-3 rounded-full">{error}</div>}
+          {error && (
+             <motion.div 
+               initial={{ opacity: 0, y: 10 }} 
+               animate={{ opacity: 1, y: 0 }} 
+               className="mt-4 text-center text-[10px] font-black uppercase tracking-widest text-rose-500 bg-rose-50 py-2 px-4 rounded-full border border-rose-100"
+             >
+               {error}
+             </motion.div>
+          )}
         </Panel>
       </ReactFlow>
     </div>

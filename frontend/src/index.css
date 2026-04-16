@@ -7,22 +7,53 @@
 
 /* ─── CSS Variables ──────────────────────────────────────── */
 :root {
-  /* Faded Glory Palette */
-  --v-primary: #E8A2A2;  /* Salmon/Rose */
-  --v-secondary: #A0C2D2; /* Muted Blue/Slate */
-  --v-bg: #F7F5E8;       /* Cream/Off-white */
-  --v-surface: #EAE0DA;  /* Beige/Mist */
-  --v-accent: #EAC7C7;   /* Soft Pink */
-  --v-info: #D5E3E8;     /* Pale Blue/Sky */
+  /* Default: Minty Fresh */
+  --v-primary: #A0C2D2;  /* Sky Blue */
+  --v-secondary: #C9F2E1; /* Mint */
+  --v-bg: #FFFDF8;       /* Ivory */
+  --v-surface: #F2F0E6;  /* Soft Beige */
+  --v-accent: #FCE3EA;   /* Blush Pink */
+  --v-text: #2D2429;     /* Deepened Plum */
   
-  --on-surface: 224 71% 4%;
-  --brand-hsl: 0 65% 77%; /* Primary mapped to HSL */
+  /* Global Spacing Tokens */
+  --space-page-x: 24px;     /* horizontal page padding */
+  --space-section: 32px;    /* between major sections */
+  --space-card: 16px 20px;  /* card internal padding */
+  --radius-bubble: 18px;    /* chat bubble radius */
+  --radius-card: 12px;      /* card/panel radius */
 }
 
-.dark {
-  --v-bg: #1c1a16;
-  --v-surface: #2a2620;
-  --on-surface: 220 33% 98%;
+.theme-lavender {
+  --v-primary: #B19CD9;  /* Lavender */
+  --v-secondary: #E6E6FA; /* Mist */
+  --v-bg: #FDFBFF;       /* Soft White */
+  --v-surface: #F3E5F5;  /* Pale Purple */
+  --v-accent: #FFF9C4;   /* Pale Gold */
+  --v-text: #1A0F2E;     /* Midnight Purple */
+}
+
+.theme-cyber {
+  --v-primary: #00F3FF;  /* Neon Cyan */
+  --v-secondary: #FF00E5; /* Hot Pink */
+  --v-bg: #0A0A0F;       /* Midnight */
+  --v-surface: #151520;  /* Slate */
+  --v-accent: #7D00FF;   /* Violet */
+  --v-text: #F0F0F0;     /* Ultra Bright White */
+}
+
+.theme-latte {
+  --v-primary: #D7B594;  /* Caramel */
+  --v-secondary: #EFEBE9; /* Cream */
+  --v-bg: #FFFBF0;       /* Warm Ivory */
+  --v-surface: #F5F1E9;  /* Latte */
+  --v-accent: #FFAB91;   /* Soft Orange */
+  --v-text: #21130D;     /* Dark Roast Coffee */
+}
+
+.dark:not([class*="theme-"]) {
+  --v-bg: #11100D;
+  --v-surface: #1c1a16;
+  --v-text: #FFFFFF;
 }
 
 /* ─── Global Reset ───────────────────────────────────────── */
@@ -41,14 +72,14 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: var(--v-bg);
-  color: #2c2c2c;
+  color: var(--v-text);
   min-height: 100vh;
   overflow-x: hidden;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .dark body {
-  color: #e2e8f0;
+  color: var(--v-text);
   background: var(--v-bg);
 }
 
@@ -60,8 +91,9 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--v-secondary);
+  background: var(--v-primary);
   border-radius: 10px;
+  opacity: 0.5;
 }
 ::-webkit-scrollbar-thumb:hover {
   filter: brightness(0.9);
@@ -187,6 +219,15 @@ body {
   @apply border-l-2 border-v-primary/50 pl-4 italic opacity-80 mb-3;
 }
 
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-blink {
+  animation: blink 1s step-end infinite;
+}
+
 /* ─── Animations ─────────────────────────────────────────── */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
@@ -197,4 +238,12 @@ body {
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
   background-size: 200% 100%;
   animation: shimmer 2s infinite;
+}
+
+/* ─── Safari Backdrop Filter Fix ─────────────────────────── */
+@supports (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px)) {
+  .backdrop-blur-md {
+    -webkit-backdrop-filter: blur(12px) !important;
+    backdrop-filter: blur(12px) !important;
+  }
 }

@@ -1,49 +1,41 @@
 import React from 'react';
-import { LayoutDashboard, MessageCircle, FileText, BookOpen, Settings, Network } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
-import { useThemeStore } from '../../store/themeStore';
+import { LayoutDashboard, MessageCircle, Network, FileText, Settings } from 'lucide-react';
+import { NavLink, useLocation } from 'react-router-dom';
 
 const BottomNav = () => {
   const location = useLocation();
-  const isDark = useThemeStore((state) => state.isDark);
 
   const navItems = [
-    { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/chat', icon: MessageCircle, label: 'Chat' },
-    { path: '/mindtree', icon: Network, label: 'Mind Map' },
-    { path: '/notes', icon: FileText, label: 'Notes' },
-    { path: '/quiz', icon: BookOpen, label: 'Quiz' },
+    { path: '/dashboard', icon: LayoutDashboard, label: 'Home' },
+    { path: '/chat', icon: MessageCircle, label: 'AI Chat' },
+    { path: '/notebooks', icon: Network, label: 'Studios' },
+    { path: '/notes', icon: FileText, label: 'Library' },
+    { path: '/settings', icon: Settings, label: 'Settings' },
   ];
 
-  const isActive = (path) => location.pathname === path;
-
   return (
-    <nav
-      className={`
-        fixed bottom-0 left-0 right-0 md:hidden z-40
-        border-t transition-colors duration-200
-        ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}
-      `}
-    >
-      <div className="flex justify-around items-center h-16 px-2">
-        {navItems.map(({ path, icon: Icon, label }) => (
-          <Link
-            key={path}
-            to={path}
-            className={`
-              flex flex-col items-center justify-center gap-1 py-2 px-3 w-full
-              rounded-lg transition-all duration-200
-              ${isActive(path)
-                ? 'text-[#E8A2A2] dark:text-[#E8A2A2] bg-[#E8A2A2]/10 dark:bg-[#E8A2A2]/10'
-                : `text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200`
-              }
-            `}
-            title={label}
-          >
-            <Icon size={24} />
-            <span className="text-xs font-medium text-center hidden xs:block">{label}</span>
-          </Link>
-        ))}
+    <nav className="fixed bottom-0 left-0 right-0 lg:hidden z-50 transition-all duration-500">
+      <div className="bg-white/80 dark:bg-[#0a0a0a]/80 backdrop-blur-3xl border-t border-v-text/5 px-6 pb-8 pt-4 flex items-center justify-between shadow-2xl">
+        {navItems.map(({ path, icon: Icon, label }) => {
+          const isActive = location.pathname === path;
+          return (
+            <NavLink
+              key={path}
+              to={path}
+              className={`flex flex-col items-center gap-1 group transition-all duration-300 ${
+                isActive ? 'text-v-primary scale-110' : 'text-v-text/30'
+              }`}
+            >
+              <div className={`p-2 rounded-2xl transition-all ${isActive ? 'bg-v-primary/10' : 'group-hover:bg-v-surface'}`}>
+                <Icon size={20} className={isActive ? 'text-v-primary' : 'group-hover:text-v-primary'} />
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-tighter">{label}</span>
+              {isActive && (
+                <div className="w-1 h-1 bg-v-primary rounded-full mt-0.5" />
+              )}
+            </NavLink>
+          );
+        })}
       </div>
     </nav>
   );

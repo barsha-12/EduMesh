@@ -1,19 +1,31 @@
 import { create } from 'zustand';
 
 export const useThemeStore = create((set) => {
-  // Initialize theme from localStorage or system preference
+  // Initialize theme and palette from localStorage
   const initTheme = () => {
-    const saved = localStorage.getItem('edumesh_theme');
-    if (saved) return saved;
+    const savedTheme = localStorage.getItem('edumesh_theme') || 'light';
+    const savedPalette = localStorage.getItem('edumesh_palette') || 'mint';
     
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
+    // Apply theme
+    if (savedTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
     }
-    return 'light';
+
+    // Apply palette
+    if (savedPalette !== 'mint') {
+      document.body.classList.add(`theme-${savedPalette}`);
+    }
+
+    return { theme: savedTheme, palette: savedPalette };
   };
 
+  const initialState = initTheme();
+
   return {
-    theme: initTheme(),
+    theme: initialState.theme,
+    palette: initialState.palette,
     fontSize: localStorage.getItem('edumesh_fontSize') || 'medium',
 
     setTheme: (theme) => {
@@ -24,6 +36,20 @@ export const useThemeStore = create((set) => {
         document.documentElement.classList.remove('dark');
       }
       set({ theme });
+    },
+
+    setPalette: (paletteName) => {
+      // Remove all previous theme classes
+      const themes = ['theme-lavender', 'theme-cyber', 'theme-latte'];
+      themes.forEach(t => document.body.classList.remove(t));
+      
+      // Add new theme if not default (mint)
+      if (paletteName !== 'mint') {
+        document.body.classList.add(`theme-${paletteName}`);
+      }
+      
+      localStorage.setItem('edumesh_palette', paletteName);
+      set({ palette: paletteName });
     },
 
     setFontSize: (size) => {

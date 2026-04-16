@@ -6,12 +6,19 @@ export default {
     extend: {
       colors: {
         v: {
-          primary: '#E8A2A2',
-          secondary: '#A0C2D2',
-          bg: '#F7F5E8',
-          surface: '#EAE0DA',
-          accent: '#EAC7C7',
-          info: '#D5E3E8',
+          primary: '#F29BB2',    /* Soft Rose */
+          secondary: '#BDBEE1',  /* Periwinkle */
+          bg: '#FFFDF8',         /* Cream */
+          surface: '#FCE3EA',    /* Pastel Pink / Strawberry Milk */
+          accent: '#A0AB89',     /* Sage Green */
+          info: '#C9F2E1',       /* Mint Green */
+          
+          /* Minty Fresh Palette */
+          plum: '#594A52',       /* Dark Plum Text */
+          mint: '#C9F2E1',       /* Mint Sidebar */
+          ivory: '#FFFDF8',      /* Background */
+          blush: '#FCE3EA',      /* Active States */
+          text: 'var(--v-text)',
         },
         brand: {
           50: '#f0f7ff',

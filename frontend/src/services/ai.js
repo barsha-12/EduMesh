@@ -1,26 +1,27 @@
-const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+import { useToastStore } from '../store/toastStore';
 
-// Removed volatile global chatHistory array
+let currentModel = 'groq'; // 'groq' or 'gemini'
+
+export const setAIModel = (model) => {
+  currentModel = model;
+  console.log(`EduMesh AI Switched to: ${model}`);
+};
+
+export const getAIModel = () => currentModel;
 
 /**
- * Send a message to Groq AI and get a response.
+ * Unified AI call router
  */
-async function callGroq(messages, temperature = 0.7, maxTokens = 2048) {
-  if (!GROQ_API_KEY) {
-    return "⚠️ Please add your Groq API key in the .env file (VITE_GROQ_API_KEY).";
-  }
-
+async function callAI(messages, temperature = 0.7, maxTokens = 2048) {
+  const endpoint = currentModel === 'gemini' ? '/api/gemini' : '/api/chat';
+  
   try {
-    const res = await fetch(GROQ_URL, {
+    const res = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GROQ_API_KEY}`,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
         messages,
+        model: currentModel === 'groq' ? 'llama-3.1-8b-instant' : 'gemini-1.5-flash',
         temperature,
         max_tokens: maxTokens,
       }),
@@ -28,43 +29,42 @@ async function callGroq(messages, temperature = 0.7, maxTokens = 2048) {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      console.error('Groq API Error:', err);
+      console.error(`${currentModel} API Error:`, err);
+      
       if (res.status === 429) {
-        return "⏳ Rate limit reached. Please wait a moment and try again.";
+        useToastStore.getState().addToast('API Rate limit reached. Using fallback...', 'warning');
       }
-      return `❌ API error (${res.status}). Please check your API key.`;
+      
+      return `❌ API error (${res.status}). Please check your connection.`;
     }
 
     const data = await res.json();
-    return data.choices[0]?.message?.content || "No response generated.";
+    return data.choices?.[0]?.message?.content || data.output || "No response generated.";
   } catch (error) {
-    console.error('Groq Error:', error);
-    return "❌ Network error. Please check your connection and try again.";
+    console.error(`${currentModel} Error:`, error);
+    return "❌ Network error. Please check your connection.";
   }
 }
 
 /**
- * Send a chat message with conversation memory provided externally.
+ * Send a chat message with conversation memory.
  */
 export async function sendChatMessage(message, externalHistory = []) {
-  // Format the external history for Groq ({role: 'user'|'assistant', content: string})
-  // Usually externalHistory from our store is {role: 'user'|'ai', text: string}
   const formattedHistory = externalHistory.map(msg => ({
     role: msg.role === 'ai' ? 'assistant' : 'user',
     content: msg.text
   }));
 
-  // Keep system prompt + last 20 messages to avoid token limits
   const messages = [
     {
       role: 'system',
-      content: 'You are EduMesh AI — a friendly, helpful study tutor for college students. Answer clearly with examples. Use markdown formatting for structure (headers, bold, bullet points, code blocks). Keep responses concise but thorough. Use simple language and analogies to explain complex topics.'
+      content: 'You are EduMesh AI — a friendly, helpful study tutor. Answer clearly with markdown formatting.'
     },
-    ...formattedHistory.slice(-20),
-    { role: 'user', content: message } // Push the newest message
+    ...formattedHistory.slice(-10),
+    { role: 'user', content: message }
   ];
 
-  return await callGroq(messages);
+  return await callAI(messages);
 }
 
 /**
@@ -88,7 +88,7 @@ Include exactly 7-10 nodes branching logically from the root topic. Return ONLY 
     }
   ];
 
-  const reply = await callGroq(messages, 0.4, 3000);
+  const reply = await callAI(messages, 0.4, 3000);
 
   try {
     const cleaned = reply.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
@@ -136,14 +136,14 @@ Keep the language simple and clear. Use analogies where helpful.`
     }
   ];
 
-  return await callGroq(messages, 0.5, 3000);
+  return await callAI(messages, 0.5, 3000);
 }
 
 /**
  * Generate MCQ quiz questions for a topic.
- * Returns parsed JSON array of questions.
+ * Accepts an optional difficulty hint based on adaptive logic.
  */
-export async function generateQuiz(subject, topic, numQuestions = 5) {
+export async function generateQuiz(subject, topic, numQuestions = 5, difficultyHint = '') {
   const messages = [
     {
       role: 'system',
@@ -155,6 +155,7 @@ export async function generateQuiz(subject, topic, numQuestions = 5) {
 
 Subject: ${subject}
 Topic: ${topic}
+${difficultyHint ? `\nDifficulty instruction: ${difficultyHint}` : ''}
 
 Return ONLY a valid JSON array. Each object must have:
 - "question": the question text
@@ -166,14 +167,180 @@ Return ONLY the JSON array, nothing else.`
     }
   ];
 
-  const reply = await callGroq(messages, 0.3, 3000);
+  const reply = await callAI(messages, 0.3, 3000);
 
   try {
-    // Clean response - remove any markdown code blocks
     const cleaned = reply.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     return JSON.parse(cleaned);
   } catch (error) {
     console.error('Quiz parse error:', error, 'Raw:', reply);
     return null;
   }
+}
+
+/**
+ * Generate flashcards from study notes content.
+ */
+export async function generateFlashcards(content, subject, topic) {
+  const messages = [
+    {
+      role: 'system',
+      content: 'You are a flashcard generator. You ONLY return valid JSON arrays. No markdown wrapping.'
+    },
+    {
+      role: 'user',
+      content: `From the following study notes, extract 8-12 key term/concept flashcards.
+
+Subject: ${subject}
+Topic: ${topic}
+Notes content:
+${content.slice(0, 3000)}
+
+Return ONLY a valid JSON array where each object has:
+- "front": the term, concept, or question (short)
+- "back": the definition, explanation, or answer (1-3 sentences)
+
+Return ONLY the JSON array.`
+    }
+  ];
+
+  const reply = await callAI(messages, 0.3, 2000);
+
+  try {
+    const cleaned = reply.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch (error) {
+    console.error('Flashcard parse error:', error, 'Raw:', reply);
+    return null;
+  }
+}
+
+/**
+ * Feynman mode — AI acts as a confused student.
+ */
+export async function sendFeynmanMessage(topic, conversationHistory = []) {
+  const messages = [
+    {
+      role: 'system',
+      content: `You are a confused student who is trying to understand "${topic}". You ask probing, thoughtful questions that test the teacher's understanding. You identify gaps in their explanation. Be curious but also challenge vague explanations. Ask "why does that happen?", "can you give an example?", "I don't get the connection between X and Y". Keep responses to 2-3 sentences max. Never break character.`
+    },
+    ...conversationHistory.map(msg => ({
+      role: msg.role === 'ai' ? 'assistant' : 'user',
+      content: msg.text
+    }))
+  ];
+
+  return await callAI(messages, 0.7, 512);
+}
+
+/**
+ * Score a Feynman teaching session.
+ */
+export async function scoreFeynmanSession(topic, exchanges) {
+  const transcript = exchanges.map(e => `${e.role === 'user' ? 'Teacher' : 'Student'}: ${e.text}`).join('\n');
+
+  const messages = [
+    {
+      role: 'system',
+      content: 'You are an education assessment expert. Analyze the teaching session and return ONLY valid JSON.'
+    },
+    {
+      role: 'user',
+      content: `Assess this teaching session where someone tried to explain "${topic}" to a confused student.
+
+Transcript:
+${transcript}
+
+Return ONLY a valid JSON object (no markdown) with:
+{
+  "feynman_score": <0-100>,
+  "strong_concepts": ["concept1", "concept2"],
+  "weak_concepts": ["concept1", "concept2"],
+  "feedback": "2-3 sentences of constructive feedback"
+}`
+    }
+  ];
+
+  const reply = await callAI(messages, 0.3, 1024);
+
+  try {
+    const cleaned = reply.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch (error) {
+    console.error('Feynman score parse error:', error);
+    return { feynman_score: 50, strong_concepts: [], weak_concepts: [], feedback: 'Could not parse assessment.' };
+  }
+}
+
+/**
+ * Generate a cram plan for panic mode.
+ */
+export async function generateCramPlan(subject, weakTopics) {
+  const messages = [
+    {
+      role: 'system',
+      content: 'You are an exam preparation expert. Create a focused, actionable cram plan.'
+    },
+    {
+      role: 'user',
+      content: `Create a cram plan for ${subject}. The student's 5 weakest topics are:
+${weakTopics.map((t, i) => `${i + 1}. ${t}`).join('\n')}
+
+Provide a markdown-formatted plan with:
+- Priority order to study
+- Key formula/concept to memorize for each
+- Time allocation suggestion (assuming 6 hours total)
+- Quick tips for each topic`
+    }
+  ];
+
+  return await callAI(messages, 0.5, 2000);
+}
+
+/**
+ * Generate a 1-page cheat sheet.
+ */
+export async function generateCheatSheet(subject, notesContent) {
+  const messages = [
+    {
+      role: 'system',
+      content: 'You are a study material compressor. Create ultra-concise cheat sheets.'
+    },
+    {
+      role: 'user',
+      content: `Compress all of the following ${subject} notes into a single-page cheat sheet. Use bullets, abbreviations, and formulas. Maximum 500 words.
+
+Notes:
+${notesContent.slice(0, 6000)}`
+    }
+  ];
+
+  return await callAI(messages, 0.3, 1500);
+}
+
+/**
+ * Chat with document context.
+ */
+export async function sendChatWithDocument(message, documentText, externalHistory = []) {
+  const formattedHistory = externalHistory.map(msg => ({
+    role: msg.role === 'ai' ? 'assistant' : 'user',
+    content: msg.text
+  }));
+
+  const messages = [
+    {
+      role: 'system',
+      content: `You are EduMesh AI — a study tutor. The student has uploaded a document. Use it as context for your answers. Here is the document content:
+
+--- DOCUMENT START ---
+${documentText.slice(0, 8000)}
+--- DOCUMENT END ---
+
+Answer questions based on this document. Use markdown formatting. Be concise but thorough.`
+    },
+    ...formattedHistory.slice(-16),
+    { role: 'user', content: message }
+  ];
+
+  return await callAI(messages);
 }

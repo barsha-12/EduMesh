@@ -1,449 +1,524 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStudyStore } from '../store/studyStore';
-import { sendChatMessage } from '../services/ai';
-import { supabase } from '../lib/supabase';
-import { Send, Sparkles, RotateCcw, User, Lightbulb, BookOpen, HelpCircle, Zap, Mic, X, AlertCircle, Wand2, Volume2, VolumeX } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { 
+  Send, Search, Download, Trash2, 
+  Plus, Mic, MicOff, Check, Copy, Star,
+  Volume2, VolumeX, MessageCircle
+} from 'lucide-react';
 
-const Waveform = () => (
-  <div className="flex items-center justify-center gap-1 h-8">
-    {[...Array(12)].map((_, i) => (
+const PillToggle = ({ label, active, onToggle }) => (
+  <div style={{
+    display: 'flex', alignItems: 'center', gap: '12px',
+    padding: '8px 16px', background: '#F0F2F5', borderRadius: '30px',
+    border: '1px solid rgba(0,0,0,0.05)', cursor: 'pointer',
+    userSelect: 'none', transition: 'all 0.2s', height: '40px'
+  }} onClick={onToggle}>
+    <span style={{ fontSize: '11px', fontWeight: '800', color: '#8A929C', letterSpacing: '0.05em' }}>{label}</span>
+    <div style={{
+      width: '36px', height: '20px', background: active ? '#E8A2A2' : '#D1D5DB',
+      borderRadius: '20px', position: 'relative', transition: 'background 0.3s'
+    }}>
       <motion.div
-        key={i}
-        animate={{ 
-          height: [8, 24, 12, 28, 8],
+        animate={{ x: active ? 18 : 2 }}
+        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+        style={{
+          width: '16px', height: '16px', background: 'white',
+          borderRadius: '50%', position: 'absolute', top: '2px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
         }}
-        transition={{ 
-          repeat: Infinity, 
-          duration: 0.8, 
-          delay: i * 0.05,
-          ease: "easeInOut"
-        }}
-        className="w-1 bg-[#A0C2D2] rounded-full"
       />
-    ))}
+    </div>
+  </div>
+);
+
+const WaveformPill = ({ active, isSpeaking, isAudioEnabled, onToggleAudio }) => (
+  <div style={{
+    display: 'flex', alignItems: 'center', gap: '10px',
+    padding: '8px 20px', background: '#E3F2FD', borderRadius: '30px',
+    border: '1px solid rgba(30,136,229,0.1)', cursor: 'pointer',
+    minWidth: '160px', height: '40px'
+  }}>
+    <div onClick={(e) => { e.stopPropagation(); onToggleAudio(); }} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+      {isAudioEnabled ? <Volume2 size={18} color="#42A5F5" /> : <VolumeX size={18} color="#90CAF9" />}
+    </div>
+    <div style={{ display: 'flex', gap: '2px', alignItems: 'center', height: '20px' }}>
+      {[...Array(15)].map((_, i) => (
+        <motion.div
+          key={i}
+          animate={(active || isSpeaking) && isAudioEnabled ? {
+            height: [6, 18, 10, 22, 6][i % 5],
+            opacity: [0.6, 1, 0.6]
+          } : { height: 3, opacity: 0.2 }}
+          transition={{
+            repeat: (active || isSpeaking) && isAudioEnabled ? Infinity : 0,
+            duration: 0.7,
+            delay: i * 0.05,
+            ease: "easeInOut"
+          }}
+          style={{ width: '2px', background: '#42A5F5', borderRadius: '2px' }}
+        />
+      ))}
+    </div>
   </div>
 );
 
 export default function AIChat() {
-  const { chatMessages, addChatMessage, setChatLoading, isChatLoading, clearChat, loadChatHistory } = useStudyStore();
-  const [input, setInput] = useState('');
-  const [isELI5, setIsELI5] = useState(false);
+  const { 
+    chatMessages, addChatMessage, setChatLoading, 
+    isChatLoading, clearChat, toggleBookmarkMessage,
+    chatSessions, activeChatSessionId, switchChatSession, createChatSession, loadChatHistory
+  } = useStudyStore();
+  
+  const [inputText, setInputText] = useState('');
+  const [streamingMsg, setStreamingMsg] = useState('');
   const [isRecording, setIsRecording] = useState(false);
-  const [showConfusionAlert, setShowConfusionAlert] = useState(false);
-  const [isTTSMode, setIsTTSMode] = useState(false);
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState(null);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
+  const [isEL15, setIsEL15] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('groq'); // 'groq' or 'gemini'
+  
   const messagesEndRef = useRef(null);
-  const inputRef = useRef(null);
-  const location = window.location; // We will check history state manually or use useLocation
+  const textareaRef = useRef(null);
+  const recognitionRef = useRef(null);
 
   useEffect(() => {
-    const init = async () => {
-      await loadChatHistory();
+    loadChatHistory();
+    // Initialize Speech Recognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
       
-      // Handle incoming redirect state (e.g. from Quiz Weakness Report)
-      const state = window.history.state?.usr;
-      if (state?.initialMsg) {
-        // Clear history state to avoid re-triggering on refresh
-        window.history.replaceState({}, document.title);
-        handleSend(null, state.initialMsg);
-      }
-    };
-    init();
+      recognitionRef.current.onresult = (event) => {
+        let finalTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          }
+        }
+        if (finalTranscript) {
+          setInputText(prev => (prev + ' ' + finalTranscript).trim());
+        }
+      };
+
+      recognitionRef.current.onend = () => {
+        if (isRecording) {
+           try { recognitionRef.current.start(); } catch(e) {}
+        }
+      };
+
+      recognitionRef.current.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        if (event.error !== 'no-speech') setIsRecording(false);
+      };
+    }
   }, []);
+
+  useEffect(() => {
+    if (isRecording) {
+      try { recognitionRef.current?.start(); } catch(e) {}
+    } else {
+      recognitionRef.current?.stop();
+    }
+  }, [isRecording]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages, isChatLoading]);
+  }, [chatMessages, streamingMsg, isChatLoading]);
 
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  const detectConfusion = (text) => {
-     const keywords = ['confused', 'dont understand', 'don\'t understand', 'hard to follow', 'what?', 'explain again', 'not clear', 'complex'];
-     return keywords.some(k => text.toLowerCase().includes(k));
+  const autoResize = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+    }
   };
 
-  const handleSend = async (e, forcedText = null) => {
+  const speak = useCallback((text) => {
+    if (!isAudioEnabled) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    window.speechSynthesis.speak(utterance);
+  }, [isAudioEnabled]);
+
+  const handleCopy = (text, index) => {
+    navigator.clipboard.writeText(text);
+    setCopiedIndex(index);
+    setTimeout(() => setCopiedIndex(null), 2000);
+  };
+
+  const sendMessage = async (e) => {
     if (e) e.preventDefault();
-    const msg = forcedText || input.trim();
+    let msg = inputText.trim();
     if (!msg || isChatLoading) return;
 
-    if (!forcedText) setInput('');
-    setShowConfusionAlert(false);
-
-    // Initial message
-    await addChatMessage({ role: 'user', text: msg, timestamp: Date.now() });
-    setChatLoading(true);
-
-    // Confusion Check
-    if (detectConfusion(msg)) {
-       setShowConfusionAlert(true);
+    if (!activeChatSessionId) {
+      const newId = await createChatSession(msg.slice(0, 30));
     }
+
+    if (isEL15) {
+      msg = `Explain the following to me like I'm 15 years old, using simple analogies and avoiding jargon where possible. Keep it engaging: ${msg}`;
+    }
+
+    setInputText('');
+    await addChatMessage({ role: 'user', text: isEL15 ? inputText.trim() : msg, timestamp: Date.now() });
+    setChatLoading(true);
+    setStreamingMsg('');
 
     try {
-      const promptContext = isELI5 
-        ? "Explain this concept to me like I am a 5 year old. Keep it extremely simple, use basic analogies, and avoid complex jargon."
-        : "You are EduMesh AI — a friendly, helpful study tutor for college students. Answer clearly with examples. Use markdown formatting for structure. Keep responses concise but thorough.";
-        
-      // Pass the *entire* history array from the store to cleanly align the Groq memory cache!
       const historySnapshot = useStudyStore.getState().chatMessages;
+      const endpoint = selectedModel === 'gemini' ? '/api/gemini' : '/api/chat';
       
-      const reply = await sendChatMessage(`[SYSTEM CONTEXT: ${promptContext}]\n\nStudent's question: ${msg}`, historySnapshot);
-      await addChatMessage({ role: 'ai', text: reply, timestamp: Date.now() });
-    
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          messages: historySnapshot.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text })),
+          model: selectedModel === 'groq' ? 'llama-3.1-8b-instant' : 'gemini-1.5-flash'
+        })
+      });
 
-      // TTS Playback logic
-      if (isTTSMode && 'speechSynthesis' in window) {
-        setIsPlayingAudio(true);
-        // Stripping markdown syntax so the voice reads purely text
-        const cleanText = reply.replace(/(\*|_|#|`)/g, '');
-        const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.rate = 1.05;
-        utterance.onend = () => setIsPlayingAudio(false);
-        utterance.onerror = () => setIsPlayingAudio(false);
-        window.speechSynthesis.speak(utterance);
+      if (!response.body) throw new Error('No response body');
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+        
+        for (const line of lines) {
+          const data = line.slice(6);
+          if (data === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(data);
+            const token = parsed.choices[0]?.delta?.content || '';
+            accumulated += token;
+            setStreamingMsg(accumulated);
+          } catch (e) {}
+        }
       }
 
+      await addChatMessage({ role: 'ai', text: accumulated, timestamp: Date.now() });
+      setStreamingMsg('');
+      if (isAudioEnabled) speak(accumulated);
     } catch (err) {
-      await addChatMessage({ role: 'ai', text: '❌ Something went wrong. Please try again.', timestamp: Date.now() });
+      console.error('Chat error:', err);
+      await addChatMessage({ role: 'ai', text: '❌ Service error. Please try again.', timestamp: Date.now() });
+    } finally {
+      setChatLoading(false);
     }
-
-    setChatLoading(false);
-  };
-
-  const activateELI5 = () => {
-     setIsELI5(true);
-     setShowConfusionAlert(false);
-     handleSend(null, "Can you explain that last part much more simply?");
-  };
-
-  const startVoiceInput = () => {
-    if (!('webkitSpeechRecognition' in window)) {
-      alert('Speech recognition is not supported in this browser.');
-      return;
-    }
-
-    const recognition = new window.webkitSpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    recognition.onstart = () => setIsRecording(true);
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      setInput(transcript);
-    };
-    recognition.onerror = () => setIsRecording(false);
-    recognition.onend = () => setIsRecording(false);
-
-    recognition.start();
-  };
-
-  const saveToNotes = async (content) => {
-     alert('Added to your notes data!');
-  };
-
-  const handleQuickQuestion = (question) => {
-    setInput(question);
-    inputRef.current?.focus();
-  };
-
-  const handleNewChat = () => {
-    clearChat();
-  };
-
-  const quickQuestions = [
-    { icon: Lightbulb, text: 'Explain Newton\'s Laws of Motion simply', color: 'text-amber-400' },
-    { icon: BookOpen, text: 'What is Object Oriented Programming?', color: 'text-blue-400' },
-    { icon: HelpCircle, text: 'How does photosynthesis work?', color: 'text-emerald-400' },
-    { icon: Zap, text: 'Explain Big O notation with examples', color: 'text-purple-400' },
-  ];
-
-  const renderMessageText = (text) => {
-    const lines = text.split('\n');
-    return lines.map((line, i) => {
-      if (line.startsWith('### ')) return <h3 key={i} className="font-bold text-sm mt-3 mb-1">{line.slice(4)}</h3>;
-      if (line.startsWith('## ')) return <h2 key={i} className="font-bold mt-3 mb-1">{line.slice(3)}</h2>;
-      if (line.startsWith('# ')) return <h1 key={i} className="font-bold text-lg mt-3 mb-1">{line.slice(2)}</h1>;
-      
-      let processed = line;
-      const boldRegex = /\*\*(.*?)\*\*/g;
-      let match;
-      const boldParts = [];
-      let lastIdx = 0;
-      while ((match = boldRegex.exec(line)) !== null) {
-        if (match.index > lastIdx) boldParts.push(line.slice(lastIdx, match.index));
-        boldParts.push(<strong key={`b-${i}-${match.index}`} className="font-bold">{match[1]}</strong>);
-        lastIdx = match.index + match[0].length;
-      }
-      if (boldParts.length > 0) {
-        if (lastIdx < line.length) boldParts.push(line.slice(lastIdx));
-        processed = boldParts;
-      }
-
-      if (typeof processed === 'string' && processed.includes('`')) {
-        const parts = processed.split(/`([^`]+)`/);
-        processed = parts.map((part, j) => 
-          j % 2 === 1 ? <code key={`c-${i}-${j}`} className="bg-[#A0C2D2]/10 px-1.5 py-0.5 rounded text-xs font-mono text-[#A0C2D2]">{part}</code> : part
-        );
-      }
-
-      if (line.startsWith('- ') || line.startsWith('* ')) {
-        return <li key={i} className="ml-4 list-disc text-sm leading-relaxed">{typeof processed === 'string' ? line.slice(2) : processed}</li>;
-      }
-      if (/^\d+\.\s/.test(line)) {
-        return <li key={i} className="ml-4 list-decimal text-sm leading-relaxed">{typeof processed === 'string' ? line.replace(/^\d+\.\s/, '') : processed}</li>;
-      }
-
-      if (line.trim() === '') return <br key={i} />;
-      return <p key={i} className="text-sm leading-relaxed mb-1">{Array.isArray(processed) ? processed : processed}</p>;
-    });
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#f8fafc] dark:bg-[#050510]">
-      <main className="flex-1 flex flex-col max-w-5xl mx-auto w-full px-6 py-6 sm:py-10">
-        {/* Chat Header */}
-        <div className="flex items-center justify-between py-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#A0C2D2] to-purple-600 flex items-center justify-center shadow-lg shadow-[#A0C2D2]/20">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>AI Study Chat</h1>
-              <p className="text-xs text-gray-400">Ask EduMesh AI any academic question</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-black/5 dark:bg-white/5 rounded-full border border-gray-100 dark:border-white/10">
-               <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">ELI5 Mode</span>
-               <button 
-                onClick={() => setIsELI5(!isELI5)}
-                className={`w-10 h-5 rounded-full relative transition-colors ${isELI5 ? 'bg-[#A0C2D2]' : 'bg-gray-300 dark:bg-white/10'}`}
-               >
-                 <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${isELI5 ? 'left-6' : 'left-1'}`} />
-               </button>
-             </div>
+    <div style={{ height: '100vh', display: 'flex', background: 'var(--v-bg)' }}>
+      <aside style={{
+        width: '260px',
+        borderRight: '0.5px solid rgba(0,0,0,0.1)',
+        display: 'flex',
+        flexDirection: 'column',
+        background: 'rgba(0,0,0,0.02)',
+        padding: '16px 12px',
+        height: '100vh',
+        overflowY: 'auto'
+      }}>
+        <button 
+          onClick={() => createChatSession()}
+          style={{
+            width: '100%',
+            padding: '10px',
+            borderRadius: '10px',
+            background: 'white',
+            border: '1px solid rgba(0,0,0,0.1)',
+            fontSize: '13px',
+            fontWeight: '600',
+            color: 'var(--v-primary)',
+            cursor: 'pointer',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}
+        >
+          <Plus size={16} /> New Chat
+        </button>
+
+        <div style={{ flex: 1 }}>
+          <p style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--gray-400)', textTransform: 'uppercase', marginBottom: '12px', paddingLeft: '8px' }}>Recents</p>
+          {chatSessions.map(session => (
             <button
-              onClick={() => {
-                if (isTTSMode && isPlayingAudio) {
-                  window.speechSynthesis.cancel();
-                  setIsPlayingAudio(false);
-                }
-                setIsTTSMode(!isTTSMode);
+              key={session.id}
+              onClick={() => switchChatSession(session.id)}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                background: activeChatSessionId === session.id ? 'var(--v-accent)' : 'transparent',
+                border: 'none',
+                textAlign: 'left',
+                fontSize: '13px',
+                color: activeChatSessionId === session.id ? 'var(--v-primary)' : 'var(--v-text)',
+                cursor: 'pointer',
+                marginBottom: '4px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                transition: 'all 0.15s'
               }}
-              className={`p-2.5 rounded-2xl transition-all flex items-center gap-2 ${isTTSMode ? 'bg-[#A0C2D2]/20 text-[#A0C2D2]' : 'bg-black/5 dark:bg-white/5 text-gray-400'}`}
-              title="Toggle Read Aloud"
             >
-              {isTTSMode ? <Volume2 size={16} /> : <VolumeX size={16} />}
-              {isPlayingAudio && <Waveform />}
+              {session.title || 'Untitled Chat'}
             </button>
-            <button
-              onClick={handleNewChat}
-              className="p-2.5 rounded-2xl bg-black/5 dark:bg-white/5 text-gray-500 hover:text-[#A0C2D2] transition-colors"
-              title="New Chat"
+          ))}
+        </div>
+      </aside>
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+        <header style={{
+          height: '60px', padding: '0 24px',
+          borderBottom: '0.5px solid rgba(0,0,0,0.1)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'var(--v-bg)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div>
+              <h1 style={{ fontSize: '15px', fontWeight: '600', color: 'var(--v-primary)', fontFamily: 'Outfit' }}>AI Study Chat</h1>
+              <p style={{ fontSize: '11px', color: 'var(--gray-400)', letterSpacing: '.05em', fontWeight: 'bold', textTransform: 'uppercase' }}>Premium research studio</p>
+            </div>
+            
+            <div style={{
+              display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.05)', borderRadius: '10px', padding: '3px', gap: '2px'
+            }}>
+              <button 
+                onClick={() => setSelectedModel('groq')}
+                style={{
+                  padding: '5px 12px', fontSize: '11px', borderRadius: '7px', cursor: 'pointer', border: 'none',
+                  background: selectedModel === 'groq' ? 'white' : 'transparent',
+                  color: selectedModel === 'groq' ? 'var(--v-primary)' : 'var(--gray-400)',
+                  fontWeight: '600', boxShadow: selectedModel === 'groq' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                }}
+              >
+                Groq 3.1
+              </button>
+              <button 
+                onClick={() => setSelectedModel('gemini')}
+                style={{
+                  padding: '5px 12px', fontSize: '11px', borderRadius: '7px', cursor: 'pointer', border: 'none',
+                  background: selectedModel === 'gemini' ? 'white' : 'transparent',
+                  color: selectedModel === 'gemini' ? 'var(--v-primary)' : 'var(--gray-400)',
+                  fontWeight: '600', boxShadow: selectedModel === 'gemini' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                }}
+              >
+                Gemini 1.5
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <PillToggle label="EL15 MODE" active={isEL15} onToggle={() => setIsEL15(!isEL15)} />
+            <WaveformPill 
+              active={isRecording} 
+              isSpeaking={isSpeaking} 
+              isAudioEnabled={isAudioEnabled} 
+              onToggleAudio={() => setIsAudioEnabled(!isAudioEnabled)} 
+            />
+            <button 
+              onClick={clearChat}
+              style={{
+                width: '40px', height: '40px', borderRadius: '50%', border: 'none',
+                background: '#F0F2F5', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', color: '#8A929C'
+              }}
             >
-              <RotateCcw size={18} />
+              <Trash2 size={18} />
             </button>
           </div>
-        </div>
+        </header>
 
-        {/* Confusion Alert Overlay */}
-        <AnimatePresence>
-          {showConfusionAlert && !isChatLoading && (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: -10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: -10 }}
-              className="mb-4 m3-card !bg-amber-500/10 border-amber-500/20 !p-4 flex items-center justify-between gap-4"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center shrink-0">
-                  <AlertCircle className="text-white w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-amber-900 dark:text-amber-200">Are you feeling confused?</p>
-                  <p className="text-xs text-amber-800/60 dark:text-amber-200/50">I detected some difficulty. Would you like a simpler breakdown?</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => setShowConfusionAlert(false)}
-                  className="px-3 py-2 text-xs font-bold text-amber-800 dark:text-amber-200/50 hover:underline"
-                >
-                  Ignore
-                </button>
-                <button 
-                  onClick={activateELI5}
-                  className="px-4 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-amber-500/20 flex items-center gap-2"
-                >
-                  <Wand2 size={14} /> Simplify (ELI5)
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <main style={{ flex: 1, overflowY: 'auto', padding: '24px 0' }}>
+          <div style={{ maxWidth: '760px', margin: '0 auto', padding: '0 24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {chatMessages.length === 0 ? (
+               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', opacity: 0.5 }}>
+                  <MessageCircle size={48} strokeWidth={1} style={{ marginBottom: '16px' }} />
+                  <p style={{ fontSize: '14px', fontWeight: '600' }}>Select a chat or start teaching {selectedModel === 'gemini' ? 'Gemini' : 'Groq'}.</p>
+               </div>
+            ) : (
+              chatMessages.map((msg, i) => (
+                <div key={i} style={{
+                  display: 'flex',
+                  flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                }}>
+                  {msg.role === 'ai' && (
+                    <div style={{
+                      width: '30px', height: '30px', borderRadius: '50%', background: 'var(--v-primary)',
+                      flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '12px', fontWeight: '600', color: 'white'
+                    }}>{selectedModel === 'gemini' ? 'G' : 'E'}</div>
+                  )}
 
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto chat-scrollbar rounded-3xl surface-low border border-gray-100 dark:border-white/5 p-4 sm:p-8 space-y-6 mb-6 shadow-inner relative">
-          {chatMessages.length === 0 && !isChatLoading ? (
-            <div className="h-full flex flex-col items-center justify-center space-y-8 py-12">
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="w-24 h-24 rounded-3xl bg-[#A0C2D2]/10 flex items-center justify-center"
-              >
-                <Sparkles className="w-12 h-12 text-[#A0C2D2]" />
-              </motion.div>
-              <div className="text-center space-y-3">
-                <h3 className="text-2xl font-bold">How can I help you today?</h3>
-                <p className="text-sm text-gray-400 max-w-sm mx-auto">
-                  Get instant explanations, problem solutions, <br /> and deep dives into any study topic.
-                </p>
-              </div>
-
-              {/* Quick Question Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-2xl mt-8">
-                {quickQuestions.map((q, i) => (
-                  <motion.button
-                    key={i}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 * i }}
-                    onClick={() => handleQuickQuestion(q.text)}
-                    className="m3-card !p-4 !rounded-2xl text-left group border border-transparent hover:border-[#A0C2D2]/20"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-xl bg-gray-100 dark:bg-white/5 flex items-center justify-center shrink-0 group-hover:bg-[#A0C2D2]/10 transition-colors`}>
-                        <q.icon className={`w-5 h-5 ${q.color}`} />
+                  <div style={{
+                    maxWidth: msg.role === 'user' ? '70%' : '85%',
+                    padding: '10px 14px',
+                    borderRadius: msg.role === 'user' ? '18px 18px 4px 18px' : '4px 18px 18px 18px',
+                    background: msg.role === 'user' ? 'var(--v-accent)' : 'white',
+                    color: 'var(--v-text)',
+                    border: '0.5px solid rgba(0,0,0,0.05)',
+                    fontSize: '14px', lineHeight: '1.65',
+                    position: 'relative'
+                  }} className="group">
+                    {msg.role === 'ai' ? (
+                      <div className="ai-content">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            h1: ({children}) => <h1 style={{fontSize:'17px',fontWeight:'500',marginBottom:'8px',color:'var(--v-text)',borderBottom:'1px solid var(--v-accent)',paddingBottom:'6px'}}>{children}</h1>,
+                            h2: ({children}) => <h2 style={{fontSize:'15px',fontWeight:'500',marginBottom:'6px',color:'var(--v-text)'}}>{children}</h2>,
+                            h3: ({children}) => <h3 style={{fontSize:'14px',fontWeight:'500',marginBottom:'5px',color:'var(--v-text)'}}>{children}</h3>,
+                            p:  ({children}) => <p style={{marginBottom:'10px',lineHeight:'1.7',fontSize:'14px'}}>{children}</p>,
+                            ul: ({children}) => <ul style={{paddingLeft:'18px',marginBottom:'10px',display:'flex',flexDirection:'column',gap:'4px'}}>{children}</ul>,
+                            ol: ({children}) => <ol style={{paddingLeft:'18px',marginBottom:'10px',display:'flex',flexDirection:'column',gap:'4px'}}>{children}</ol>,
+                            li: ({children}) => <li style={{fontSize:'14px',lineHeight:'1.65',listStyleType:'disc',color:'inherit'}}>{children}</li>,
+                            strong: ({children}) => <strong style={{fontWeight:'500',color:'var(--v-primary)'}}>{children}</strong>,
+                            code: ({inline,children}) => inline
+                              ? <code style={{fontFamily:'monospace',fontSize:'12px',background:'var(--v-surface)',color:'var(--v-text)',padding:'1px 5px',borderRadius:'4px'}}>{children}</code>
+                              : <pre style={{background:'var(--v-bg)',border:'0.5px solid rgba(0,0,0,0.1)',borderRadius:'8px',padding:'12px 14px',overflowX:'auto',marginBottom:'12px'}}><code style={{fontFamily:'monospace',fontSize:'12.5px'}}>{children}</code></pre>,
+                            hr: () => <hr style={{border:'none',borderTop:'0.5px solid rgba(0,0,0,0.1)',margin:'12px 0'}}/>,
+                          }}
+                        >
+                          {msg.text}
+                        </ReactMarkdown>
                       </div>
-                      <span className="text-sm font-medium text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white transition-colors leading-snug">
-                        {q.text}
-                      </span>
-                    </div>
-                  </motion.button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {chatMessages.map((msg, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`flex items-start gap-4 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                    <div className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center mt-1 shadow-sm ${
-                      msg.role === 'user' 
-                        ? 'bg-[#A0C2D2]' 
-                        : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-white/5'
-                    }`}>
-                      {msg.role === 'user' 
-                        ? <User className="w-5 h-5 text-white" /> 
-                        : <Sparkles className="w-5 h-5 text-[#A0C2D2]" />
-                      }
-                    </div>
-                    <div className={`p-5 rounded-3xl text-sm leading-relaxed relative group ${
-                      msg.role === 'user'
-                        ? 'bg-[#A0C2D2] text-white rounded-tr-sm shadow-md'
-                        : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-white/5 text-gray-800 dark:text-gray-200 rounded-tl-sm shadow-sm'
-                    }`}>
-                      {msg.role === 'ai' ? renderMessageText(msg.text) : msg.text}
-                      
-                      {msg.role === 'ai' && (
-                        <div className="absolute top-2 -right-12 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button 
-                            onClick={() => saveToNotes(msg.text)}
-                            className="p-2 bg-white dark:bg-gray-800 border border-gray-100 dark:border-white/5 shadow-md rounded-full text-gray-400 hover:text-[#A0C2D2] transition-colors"
-                            title="Save as study note"
-                          >
-                            <BookOpen className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
+                    ) : (
+                      msg.text
+                    )}
 
-              {isChatLoading && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex items-start gap-4"
-                >
-                  <div className="w-9 h-9 rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-white/5 flex items-center justify-center shadow-sm">
-                    <Sparkles className="w-5 h-5 text-[#A0C2D2]" />
+                    {msg.role === 'ai' && (
+                      <div style={{
+                        position: 'absolute', top: 0, left: '100%', marginLeft: '8px',
+                        display: 'flex', gap: '4px', opacity: 0, transition: 'opacity 0.2s'
+                      }} className="group-hover:opacity-100">
+                        <button onClick={() => speak(msg.text)} style={{background:'white',border:'0.5px solid rgba(0,0,0,0.1)',borderRadius:'8px',padding:'4px',cursor:'pointer'}}>
+                          <Volume2 size={14} />
+                        </button>
+                        <button onClick={() => toggleBookmarkMessage(chatMessages.indexOf(msg))} style={{background:'white',border:'0.5px solid rgba(0,0,0,0.1)',borderRadius:'8px',padding:'4px',cursor:'pointer'}}>
+                          <Star size={14} className={msg.isBookmarked ? 'fill-current text-amber-500' : ''} />
+                        </button>
+                        <button onClick={() => handleCopy(msg.text, i)} style={{background:'white',border:'0.5px solid rgba(0,0,0,0.1)',borderRadius:'8px',padding:'4px',cursor:'pointer'}}>
+                          {copiedIndex === i ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div className="p-5 rounded-3xl rounded-tl-sm bg-white dark:bg-gray-800 border border-gray-100 dark:border-white/5">
-                    <div className="typing-indicator flex gap-1.5">
-                      <span className="bg-[#A0C2D2]/50"></span>
-                      <span className="bg-[#A0C2D2]/50"></span>
-                      <span className="bg-[#A0C2D2]/50"></span>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Input Area */}
-        <div className="relative">
-          <AnimatePresence>
-            {isRecording && (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                className="absolute -top-16 left-0 right-0 m3-card !py-2 !px-6 flex items-center justify-between shadow-2xl border-[#A0C2D2]/30 ring-1 ring-[#A0C2D2]/10"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                  <span className="text-xs font-bold uppercase tracking-widest text-gray-500">Listening...</span>
                 </div>
-                <Waveform />
-                <button onClick={() => setIsRecording(false)} className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors text-gray-400">
-                  <X size={16} />
-                </button>
-              </motion.div>
+              ))
             )}
-          </AnimatePresence>
 
-          <form onSubmit={handleSend} className="m3-card !p-2 flex gap-2 items-center shadow-xl border-gray-100 dark:border-white/5 ring-1 ring-black/5 dark:ring-white/5">
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={isRecording ? "" : "Ask me anything about your studies..."}
-              className="flex-1 bg-transparent border-none focus:ring-0 px-4 py-3 text-sm placeholder-gray-400 dark:text-white"
-              disabled={isChatLoading || isRecording}
-            />
-            
-            <button
-              type="button"
-              onClick={startVoiceInput}
-              className={`w-12 h-12 rounded-2xl transition-all flex items-center justify-center ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'text-gray-400 hover:bg-black/5 dark:hover:bg-white/5 hover:text-[#A0C2D2]'}`}
-              title="Voice Input"
-            >
-              <Mic className="w-5 h-5" />
-            </button>
+            {isChatLoading && (
+               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                 <div style={{
+                   width: '30px', height: '30px', borderRadius: '50%', background: 'rgba(0,0,0,0.05)',
+                   flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                 }}>
+                   <div className="w-4 h-4 rounded-full border-2 border-v-primary border-t-transparent animate-spin" />
+                 </div>
+                 <div style={{
+                   padding: '12px 18px', borderRadius: '4px 18px 18px 18px',
+                   background: 'white', color: 'var(--gray-400)', border: '0.5px solid rgba(0,0,0,0.05)',
+                   fontSize: '13px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px'
+                 }}>
+                   Thinking...
+                   <span className="flex gap-1">
+                     <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1 }}>.</motion.span>
+                     <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }}>.</motion.span>
+                     <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }}>.</motion.span>
+                   </span>
+                 </div>
+               </div>
+            )}
 
-            <button
-              type="submit"
-              disabled={!input.trim() || isChatLoading}
-              className="w-12 h-12 rounded-2xl bg-[#A0C2D2] text-white flex items-center justify-center shadow-lg shadow-[#A0C2D2]/30 disabled:opacity-30 disabled:shadow-none transition-all hover:scale-105 active:scale-95"
-            >
-              <Send className="w-5 h-5" />
-            </button>
-          </form>
+            {streamingMsg && (
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                <div style={{
+                  width: '30px', height: '30px', borderRadius: '50%', background: 'var(--v-primary)',
+                  flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '12px', fontWeight: '600', color: 'white'
+                }}>{selectedModel === 'gemini' ? 'G' : 'E'}</div>
+                <div style={{
+                  maxWidth: '85%', padding: '10px 14px', borderRadius: '4px 18px 18px 18px',
+                  background: 'white', color: 'var(--v-text)', border: '0.5px solid rgba(0,0,0,0.05)',
+                  fontSize: '14px', lineHeight: '1.65'
+                }}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingMsg}</ReactMarkdown>
+                  <span className="animate-blink" style={{ fontWeight: '300', marginLeft: '2px' }}>▋</span>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+        </main>
+
+        <div style={{
+          padding: '10px 12px 10px 16px',
+          background: 'white', border: '1px solid rgba(0,0,0,0.1)',
+          borderRadius: '16px', display: 'flex', alignItems: 'flex-end', gap: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+          maxWidth: '760px', margin: '0 auto 20px auto', width: 'calc(100% - 48px)'
+        }}>
+          <button onClick={() => {}} title="Attach file" style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px' }}>
+            <Plus size={18} strokeWidth={1.75} color="var(--gray-400)" />
+          </button>
+
+          <textarea
+            ref={textareaRef}
+            rows={1} 
+            placeholder="Ask anything about your studies..."
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            onInput={autoResize}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }}}
+            style={{ flex: 1, resize: 'none', border: 'none', background: 'transparent',
+              fontSize: '14px', lineHeight: '1.6', maxHeight: '120px', outline: 'none',
+              padding: '4px 0' }}
+          />
+
+
+          <button 
+            onClick={() => setIsRecording(!isRecording)}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px',
+              color: isRecording ? 'var(--v-primary)' : 'var(--gray-400)' }}
+          >
+            <Mic size={18} strokeWidth={1.75}/>
+          </button>
+
+          <button 
+            onClick={sendMessage} 
+            disabled={!inputText.trim() || isChatLoading}
+            style={{
+              padding: '7px 14px', borderRadius: '10px', fontSize: '13px',
+              background: inputText.trim() ? 'var(--v-primary)' : 'rgba(0,0,0,0.05)',
+              color: inputText.trim() ? 'white' : 'var(--gray-400)',
+              transition: 'all .15s', border: 'none', 
+              cursor: inputText.trim() ? 'pointer' : 'default',
+              fontWeight: '600'
+            }}
+          >
+            Send
+          </button>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

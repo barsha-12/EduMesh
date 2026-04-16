@@ -37,7 +37,7 @@ class ErrorBoundary extends React.Component {
             
             <div className="flex flex-col gap-3">
               <button 
-                onClick={handleReset}
+                onClick={this.handleReset}
                 className="btn-primary w-full py-4 flex items-center justify-center gap-3"
               >
                 <RotateCcw size={18} /> Restore Platform

@@ -1,98 +1,91 @@
-# EduMesh — AI Study Buddy 🎓
+# EduMesh: Elite AI Studio 🧠✨
 
-An AI-powered study companion for college students. Get instant explanations, generate smart notes, and practice with quizzes.
+[![Vercel Deployment](https://img.shields.io/badge/Vercel-Deployed-black?style=for-the-badge&logo=vercel)](https://edu-mesh.vercel.app/)
+[![React Version](https://img.shields.io/badge/React-18-blue?style=for-the-badge&logo=react)](https://react.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.x-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
+[![MongoDB Scaling](https://img.shields.io/badge/MongoDB-1k+_Members-47A248?style=for-the-badge&logo=mongodb)](https://www.mongodb.com/)
 
-![EduMesh](https://img.shields.io/badge/EduMesh-AI%20Study%20Buddy-6366f1?style=for-the-badge)
+**EduMesh** is a premium, high-fidelity research and study platform designed for the modern elite student. It integrates cutting-edge AI (Groq & Gemini) with advanced visual tools (Mind Trees, Knowledge Graphs) to transform raw data into deep intelligence.
 
 ---
 
-## ✨ Features
+## 🚀 Key Features
 
-| Feature | Description |
-|---------|-------------|
-| 🤖 **AI Study Chat** | Ask any doubt and get instant, detailed explanations powered by Groq AI |
-| 📝 **Smart Notes** | Pick a subject and topic — AI generates structured study notes with examples |
-| 📥 **Download PDF** | Export your generated study notes as a PDF for offline reading |
-| 🧠 **Practice Quiz** | AI creates MCQ quizzes to test your knowledge with instant feedback |
-| 📊 **Study Dashboard** | Track your study streak, notes created, quizzes taken, and average score |
+### 🌟 AI Elite Synthesis
+- **Dual-Model Switching**: Toggle between **Groq 3.1** (Ultra-fast chat) and **Gemini 1.5 Flash** (Deep reasoning) in real-time.
+- **Voice Intelligence**: Interactive audio synthesis with dynamic waveforms and recording toggles.
+- **Contextual Knowledge**: Pin insights directly to your research notes for auto-synthesis.
 
-## 🛠️ Tech Stack
+### 🌳 Visual Intelligence Studio
+- **Dynamic Mind Tree**: Transform concepts into interactive 2D/3D trees that visualize logical relationships.
+- **Knowledge Graphing**: See your notes as a neural network of connected ideas.
+- **Feynman Module**: Master any topic using the Feynman technique with structured AI feedback.
 
-- **Frontend**: React 18 + Vite
-- **Styling**: Tailwind CSS with glassmorphism effects
-- **State**: Zustand
-- **Auth & DB**: Supabase (free tier)
-- **AI**: Groq AI (free tier with API key)
-- **PDF Export**: html2pdf.js
-- **Animations**: Framer Motion
-- **Icons**: Lucide React
+### 🛡️ Production-Grade Infrastructure
+- **Hybrid Auth Engine**: Secure **Supabase OAuth** login combined with a **MongoDB** member database for 1000+ user scalability.
+- **API Guard**: Real-time 100-request daily limit tracking with reset logic for elite free-tier management.
+- **Elite Customization**: 4 premium color palettes (Mint, Lavender, Cyber, Latte) with Dark/Light mode and fluid font-scaling.
 
-## 🚀 Getting Started
+---
 
-### 1. Clone the repo
+## 🛠️ Technology Stack
 
+| Layer | Technologies |
+| :--- | :--- |
+| **Frontend** | React 18, Vite, Framer Motion, Tailwind CSS, Lucide |
+| **Backend** | Node.js, Vercel Functions, JWT |
+| **Database** | MongoDB Atlas, Upstash Redis (Cache) |
+| **Auth** | Supabase OAuth 2.0 (Google) |
+| **AI Providers** | Groq (Llama 3.x), Google Generative AI (Gemini) |
+
+---
+
+## 📦 Getting Started
+
+### 1. Clone the Repository
 ```bash
 git clone https://github.com/karanray06/EduMesh.git
 cd EduMesh/frontend
 ```
 
-### 2. Install dependencies
+### 2. Environment Configuration
+Create a `.env` file in the `frontend/` directory with the following keys:
+```env
+# MongoDB & Redis
+MONGODB_URI=your_mongodb_uri
+REDIS_URL=your_upstash_redis_url
 
+# AI Keys
+GROQ_API_KEY=your_groq_key
+GEMINI_API_KEY=your_gemini_key
+
+# Supabase Auth
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# Secrets
+NEXTAUTH_SECRET=your_32_char_secret
+```
+
+### 3. Install & Run
 ```bash
 npm install
-```
-
-### 3. Set up environment variables
-
-Create a `.env` file in the `frontend/` folder:
-
-```env
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-VITE_GROQ_API_KEY=your_groq_api_key
-```
-
-**How to get these keys:**
-- **Supabase**: Create a free project at [supabase.com](https://supabase.com) → Settings → API → copy URL and anon key
-- **Groq API**: Get a free key at [groq.com](https://groq.com) → Create an API key
-
-### 4. Run the app
-
-```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+The app will launch at `http://localhost:3002`.
 
-## 📁 Project Structure
+---
 
-```
-frontend/
-├── src/
-│   ├── components/ui/     # Reusable UI components (GlassCard, Navbar, AnimatedBackground)
-│   ├── pages/             # 5 pages (Login, Dashboard, AIChat, StudyNotes, Quiz)
-│   ├── services/          # Groq AI service wrapper
-│   ├── store/             # Zustand stores (auth, study)
-│   ├── lib/               # Supabase client
-│   ├── App.jsx            # Router setup
-│   ├── main.jsx           # Entry point
-│   └── index.css          # Global styles + animations
-├── .env                   # Environment variables
-├── package.json
-├── tailwind.config.js
-└── vite.config.js
-```
+## 📈 Roadmap
+- [x] **v2.1**: Supabase OAuth Restoration & MongoDB Scaling.
+- [x] **v2.2**: AI Usage Studio & Integrated Theme Controller.
+- [ ] **v2.3**: Real-time collaborative Notebook sharing.
+- [ ] **v2.4**: Mobile-native Elite Companion App.
 
-## 🎯 Real-Life Use Case
-
-Every college student struggles with:
-- Understanding complex topics quickly
-- Creating good study notes
-- Testing their own knowledge before exams
-- Staying consistent with studies
-
-**EduMesh solves all of these** by putting an AI tutor in your pocket. Just type your question and get a clear explanation. Generate structured notes for any topic. Take AI-generated quizzes to test yourself. Track your study streak to stay motivated.
+---
 
 ## 📄 License
+Designed & Built with ❤️ by the EduMesh Intelligence Team. All Rights Reserved.
 
-MIT
+**Live Demo:** [edu-mesh.vercel.app](https://edu-mesh.vercel.app/)
