@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { ReactFlow, Controls, Background, useNodesState, useEdgesState, addEdge, Panel } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { motion } from 'framer-motion';
 import { generateMindTree } from '../services/ai';
 import { Sparkles, Loader2, Network } from 'lucide-react';
 
