@@ -181,7 +181,8 @@ export default function AIChat() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           messages: historySnapshot.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text })),
-          model: selectedModel === 'groq' ? 'llama-3.1-8b-instant' : 'gemini-1.5-flash'
+          model: selectedModel === 'groq' ? 'llama-3.1-8b-instant' : 'gemini-1.5-flash',
+          stream: true
         })
       });
 

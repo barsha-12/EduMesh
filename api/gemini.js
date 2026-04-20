@@ -37,8 +37,8 @@ export default async function handler(req, res) {
           await users.updateOne({ _id: user._id }, { $set: { usage_count: 0, usage_reset_date: today } });
           user.usage_count = 0;
         }
-        if (user.usage_count >= 100) {
-          return res.status(403).json({ error: 'Daily AI limit reached (100/100). Upgrade to Elite Plus.', limitReached: true });
+        if (user.usage_count >= 500) {
+          return res.status(403).json({ error: 'Daily AI limit reached (500/500). Upgrade to Elite Plus.', limitReached: true });
         }
         await users.updateOne({ _id: user._id }, { $inc: { usage_count: 1 } });
       }
@@ -49,6 +49,7 @@ export default async function handler(req, res) {
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   try {
+    const { stream = false } = req.body;
     // Standard chat handling
     let history = [];
     let userMessage = prompt || "Hello!";
@@ -61,29 +62,43 @@ export default async function handler(req, res) {
       userMessage = messages[messages.length - 1].content;
     }
 
-    const chat = model.startChat({ history });
+    if (stream) {
+      const chat = model.startChat({ history });
 
-    // Set headers for SSE
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no');
+      // Set headers for SSE
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
 
-    const result = await chat.sendMessageStream(userMessage);
+      const result = await chat.sendMessageStream(userMessage);
 
-    for await (const chunk of result.stream) {
-      const chunkText = chunk.text();
-      // Format as Groq-like SSE for frontend unity
-      const data = {
+      for await (const chunk of result.stream) {
+        const chunkText = chunk.text();
+        // Format as Groq-like SSE for frontend unity
+        const data = {
+          choices: [{
+            delta: { content: chunkText }
+          }]
+        };
+        res.write(`data: ${JSON.stringify(data)}\n\n`);
+      }
+
+      res.write('data: [DONE]\n\n');
+      return res.end();
+    } else {
+      const chat = model.startChat({ history });
+      const result = await chat.sendMessage(userMessage);
+      const response = await result.response;
+      const text = response.text();
+      
+      // Return standard JSON resembling Groq's structure for consistency
+      return res.json({
         choices: [{
-          delta: { content: chunkText }
+          message: { content: text }
         }]
-      };
-      res.write(`data: ${JSON.stringify(data)}\n\n`);
+      });
     }
-
-    res.write('data: [DONE]\n\n');
-    res.end();
   } catch (error) {
     console.error('Gemini API Error:', error);
     if (!res.writableEnded) {

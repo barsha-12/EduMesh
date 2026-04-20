@@ -24,6 +24,7 @@ async function callAI(messages, temperature = 0.7, maxTokens = 2048) {
         model: currentModel === 'groq' ? 'llama-3.1-8b-instant' : 'gemini-1.5-flash',
         temperature,
         max_tokens: maxTokens,
+        stream: false, // Explicitly request JSON for non-chat features
       }),
     });
 

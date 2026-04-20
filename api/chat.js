@@ -56,9 +56,9 @@ export default async function handler(req, res) {
           user.usage_count = 0;
         }
 
-        if (user.usage_count >= 100) {
+        if (user.usage_count >= 500) {
           return res.status(403).json({ 
-            error: 'Daily AI limit reached (100/100). Please upgrade to Elite Plus for unlimited synthesis.',
+            error: 'Daily AI limit reached (500/500). Please upgrade to Elite Plus for unlimited synthesis.',
             limitReached: true 
           });
         }
@@ -75,7 +75,7 @@ export default async function handler(req, res) {
   if (redis) {
     try {
       const key = `ratelimit:chat:${userId}`;
-      const limit = 30; // 30 reqs per minute
+      const limit = 50; // Increased limit for stabilizer testing
       const currentReqs = await redis.incr(key);
       if (currentReqs === 1) await redis.expire(key, 60);
       if (currentReqs > limit) {
@@ -90,7 +90,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { messages, model, temperature, max_tokens, type = 'chat' } = req.body;
+    const { messages, model, temperature, max_tokens, type = 'chat', stream = false } = req.body;
     
     // Performance: Fast llama-3.1-8b for chat, llama-3.3-70b only for advanced tasks
     const targetModel = model === 'llama-3.3-70b-versatile' ? 'llama-3.3-70b-versatile' : 'llama-3.1-8b-instant';
@@ -117,7 +117,7 @@ export default async function handler(req, res) {
         ],
         temperature: temperature ?? 0.7,
         max_tokens: max_tokens ?? tokenLimits[type] ?? 800,
-        stream: true,
+        stream: stream,
       }),
     });
 
@@ -129,23 +129,28 @@ export default async function handler(req, res) {
       });
     }
 
-    // Set headers for SSE
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no');
+    if (stream) {
+      // Set headers for SSE
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
 
-    // Pipe the response body to the client
-    const reader = groqResponse.body.getReader();
-    const decoder = new TextDecoder();
+      // Pipe the response body to the client
+      const reader = groqResponse.body.getReader();
+      const decoder = new TextDecoder();
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      res.write(value);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        res.write(value);
+      }
+      return res.end();
+    } else {
+      // Standard JSON response
+      const data = await groqResponse.json();
+      return res.json(data);
     }
-    
-    res.end();
   } catch (error) {
     console.error('Proxy error:', error);
     return res.status(500).json({ error: 'Internal server error' });
