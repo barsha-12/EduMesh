@@ -51,31 +51,36 @@ export default function Quiz() {
 
     setIsGenerating(true);
     
-    // Adaptive logic calculation
-    const subjectQuizzes = quizHistory.filter(q => q.subject === subject);
-    const avgScore = subjectQuizzes.length > 0 ? (subjectQuizzes.reduce((a,q) => a+q.score,0)/subjectQuizzes.length) : 0;
-    
-    let difficultyHint = '';
-    if (avgScore >= 80) difficultyHint = `The student is an expert (${avgScore}% avg). Make the questions highly challenging and conceptual.`;
-    else if (avgScore > 0 && avgScore < 50) difficultyHint = `The student struggles with this (${avgScore}% avg). Make the questions foundational to build confidence.`;
-    else difficultyHint = 'Make it a mix of intermediate level questions.';
+    try {
+      // Adaptive logic calculation
+      const subjectQuizzes = quizHistory.filter(q => q.subject === subject);
+      const avgScore = subjectQuizzes.length > 0 ? (subjectQuizzes.reduce((a,q) => a+q.score,0)/subjectQuizzes.length) : 0;
+      
+      let difficultyHint = '';
+      if (avgScore >= 80) difficultyHint = `The student is an expert (${avgScore}% avg). Make the questions highly challenging and conceptual.`;
+      else if (avgScore > 0 && avgScore < 50) difficultyHint = `The student struggles with this (${avgScore}% avg). Make the questions foundational to build confidence.`;
+      else difficultyHint = 'Make it a mix of intermediate level questions.';
 
-    const quiz = await generateQuiz(subject, topic, numQuestions, difficultyHint);
-    setIsGenerating(false);
+      const quiz = await generateQuiz(subject, topic, numQuestions, difficultyHint);
 
-    if (!quiz) {
-      alert('Failed to generate quiz. Please check your API key and try again.');
-      return;
+      if (!quiz) {
+        throw new Error('Neural mapping failed. Please refine your topic.');
+      }
+
+      setQuestions(quiz);
+      setCurrentQ(0);
+      setScore(0);
+      setAnswers([]);
+      setSelectedAnswer(null);
+      setIsAnswered(false);
+      setIsFinished(false);
+      setPhase('quiz');
+    } catch (err) {
+      console.error('Quiz generation error:', err);
+      alert(err.message || 'Failed to generate quiz. Please try again.');
+    } finally {
+      setIsGenerating(false);
     }
-
-    setQuestions(quiz);
-    setCurrentQ(0);
-    setScore(0);
-    setAnswers([]);
-    setSelectedAnswer(null);
-    setIsAnswered(false);
-    setIsFinished(false);
-    setPhase('quiz');
   };
 
   const handleAnswer = (optionIndex) => {

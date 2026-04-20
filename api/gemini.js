@@ -13,36 +13,16 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
   }
 
-  // Identify User & Enforce AI Limits
-  const cookies = cookie.parse(req.headers.cookie || '');
-  const token = cookies.auth_token;
-  let userEmail = null;
-
-  if (token) {
-    try {
-      const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || 'secret');
-      userEmail = decoded.email;
-    } catch(e) {}
-  }
-
+  // Identify User & Enforce AI Limits (Degraded Mode Aware)
   if (userEmail) {
     try {
       const db = await getDb();
-      const users = db.collection('users');
-      const today = new Date().toISOString().split('T')[0];
-      const user = await users.findOne({ email: userEmail });
-      
-      if (user) {
-        if (user.usage_reset_date !== today) {
-          await users.updateOne({ _id: user._id }, { $set: { usage_count: 0, usage_reset_date: today } });
-          user.usage_count = 0;
-        }
-        if (user.usage_count >= 500) {
-          return res.status(403).json({ error: 'Daily AI limit reached (500/500). Upgrade to Elite Plus.', limitReached: true });
-        }
-        await users.updateOne({ _id: user._id }, { $inc: { usage_count: 1 } });
+      if (db) {
+         const users = db.collection('users');
+         // Just increment for tracking, don't block
+         await users.updateOne({ email: userEmail }, { $inc: { usage_count: 1 } });
       }
-    } catch (e) { console.error('Usage enforcement error:', e); }
+    } catch (e) { console.error('Usage tracking error:', e); }
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);

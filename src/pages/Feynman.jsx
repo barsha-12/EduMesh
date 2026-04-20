@@ -52,10 +52,17 @@ export default function Feynman() {
     setPhase('teaching');
     setIsLoading(true);
 
-    const firstMessage = await sendFeynmanMessage(topic, []);
-    const aiMsg = { role: 'ai', text: firstMessage, timestamp: Date.now() };
-    setExchanges([aiMsg]);
-    setIsLoading(false);
+    try {
+      const firstMessage = await sendFeynmanMessage(topic, []);
+      const aiMsg = { role: 'ai', text: firstMessage, timestamp: Date.now() };
+      setExchanges([aiMsg]);
+    } catch (err) {
+      console.error('Feynman start error:', err);
+      addToast('Failed to start session. AI is unavailable.', 'error');
+      setPhase('setup');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const sendMessage = async (e) => {
@@ -68,33 +75,48 @@ export default function Feynman() {
     setInput('');
     setIsLoading(true);
 
-    const reply = await sendFeynmanMessage(topic, updated);
-    const aiMsg = { role: 'ai', text: reply, timestamp: Date.now() };
-    setExchanges([...updated, aiMsg]);
-    setIsLoading(false);
+    try {
+      const reply = await sendFeynmanMessage(topic, updated);
+      const aiMsg = { role: 'ai', text: reply, timestamp: Date.now() };
+      setExchanges([...updated, aiMsg]);
+    } catch (err) {
+      console.error('Feynman message error:', err);
+      addToast('Feedback failed. Please try again.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const endSession = async () => {
     setPhase('scoring');
-    const result = await scoreFeynmanSession(topic, exchanges);
-    setScore(result);
+    setIsLoading(true);
+    try {
+      const result = await scoreFeynmanSession(topic, exchanges);
+      setScore(result);
 
-    // Save to Supabase
-    if (user?.id && !user.id.startsWith('demo')) {
-      await supabase.from('feynman_sessions').insert([{
-        user_id: user.id,
-        topic,
-        subject,
-        score: result.feynman_score,
-        strong_concepts: result.strong_concepts,
-        weak_concepts: result.weak_concepts,
-        feedback: result.feedback,
-        exchanges,
-      }]);
+      // Save to Supabase
+      if (user?.id && !user.id.startsWith('demo')) {
+        await supabase.from('feynman_sessions').insert([{
+          user_id: user.id,
+          topic,
+          subject,
+          score: result.feynman_score,
+          strong_concepts: result.strong_concepts,
+          weak_concepts: result.weak_concepts,
+          feedback: result.feedback,
+          exchanges,
+        }]);
+      }
+
+      addToast(`Feynman session scored: ${result.feynman_score}/100`, 'success');
+      setPhase('results');
+    } catch (err) {
+      console.error('Scoring error:', err);
+      addToast('Failed to score session.', 'error');
+      setPhase('teaching');
+    } finally {
+      setIsLoading(false);
     }
-
-    addToast(`Feynman session scored: ${result.feynman_score}/100`, 'success');
-    setPhase('results');
   };
 
   const resetSession = () => {

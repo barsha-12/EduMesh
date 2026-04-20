@@ -96,17 +96,22 @@ export default function MindTree() {
     setIsGenerating(true);
     setError(null);
 
-    const data = await generateMindTree(input.trim());
-    
-    if (data && Array.isArray(data) && data.length > 0) {
-      const { mappedNodes, mappedEdges } = calculateLayout(data);
-      setNodes(mappedNodes);
-      setEdges(mappedEdges);
-    } else {
-      setError("Synthesis failed. Neural patterns could not be mapped.");
+    try {
+      const data = await generateMindTree(input.trim());
+      
+      if (data && Array.isArray(data) && data.length > 0) {
+        const { mappedNodes, mappedEdges } = calculateLayout(data);
+        setNodes(mappedNodes);
+        setEdges(mappedEdges);
+      } else {
+        setError("Synthesis failed. Neural patterns could not be mapped.");
+      }
+    } catch (err) {
+      console.error('MindTree error:', err);
+      setError("AI Service error. Please try again.");
+    } finally {
+      setIsGenerating(false);
     }
-    
-    setIsGenerating(false);
   };
 
   return (

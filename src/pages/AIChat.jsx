@@ -8,6 +8,7 @@ import {
   Plus, Mic, MicOff, Check, Copy, Star,
   Volume2, VolumeX, MessageCircle
 } from 'lucide-react';
+import { sendChatMessage } from '../services/ai';
 
 const PillToggle = ({ label, active, onToggle }) => (
   <div style={{
@@ -168,56 +169,35 @@ export default function AIChat() {
     }
 
     setInputText('');
-    await addChatMessage({ role: 'user', text: isEL15 ? inputText.trim() : msg, timestamp: Date.now() });
+    const userMsg = { role: 'user', text: isEL15 ? inputText.trim() : msg, timestamp: Date.now() };
+    const updatedMsgs = [...useStudyStore.getState().chatMessages, userMsg];
+    
+    // 1. Sync state immediately
+    await addChatMessage(userMsg);
+    
     setChatLoading(true);
     setStreamingMsg('');
 
     try {
-      const historySnapshot = useStudyStore.getState().chatMessages;
-      const endpoint = selectedModel === 'gemini' ? '/api/gemini' : '/api/chat';
+      // 2. Pass the fresh const to the API, not the stale state
+      const finalReply = await sendChatMessage(
+        isEL15 ? inputText.trim() : msg, 
+        updatedMsgs.slice(0, -1), // History is everything BEFORE the new message
+        (token) => setStreamingMsg(token)
+      );
+
+      // 4. Store the AI response
+      const aiResponse = { role: 'ai', text: finalReply, timestamp: Date.now() };
+      await addChatMessage(aiResponse);
       
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          messages: historySnapshot.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text })),
-          model: selectedModel === 'groq' ? 'llama-3.1-8b-instant' : 'gemini-1.5-flash',
-          stream: true
-        })
-      });
-
-      if (!response.body) throw new Error('No response body');
-      
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let accumulated = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
-        
-        for (const line of lines) {
-          const data = line.slice(6);
-          if (data === '[DONE]') break;
-          try {
-            const parsed = JSON.parse(data);
-            const token = parsed.choices[0]?.delta?.content || '';
-            accumulated += token;
-            setStreamingMsg(accumulated);
-          } catch (e) {}
-        }
-      }
-
-      await addChatMessage({ role: 'ai', text: accumulated, timestamp: Date.now() });
       setStreamingMsg('');
-      if (isAudioEnabled) speak(accumulated);
+      if (isAudioEnabled) speak(finalReply);
     } catch (err) {
       console.error('Chat error:', err);
-      await addChatMessage({ role: 'ai', text: '❌ Service error. Please try again.', timestamp: Date.now() });
+      const errorMsg = err?.message || '❌ Service error. Please try again.';
+      await addChatMessage({ role: 'ai', text: errorMsg, timestamp: Date.now() });
     } finally {
+      // 3. Guaranteed loading reset
       setChatLoading(false);
     }
   };

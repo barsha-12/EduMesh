@@ -1,4 +1,6 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env' });
+dotenv.config({ path: '.env.local' });
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import path from 'path';
@@ -59,11 +61,11 @@ app.use('/api', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`
   🚀 EduMesh API Mock Server
   -------------------------
-  Listening on: http://localhost:${PORT}
+  Listening on: http://0.0.0.0:${PORT}
   Mapping: /api/* -> ./api/*.js
   `);
 });

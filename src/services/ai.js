@@ -10,9 +10,9 @@ export const setAIModel = (model) => {
 export const getAIModel = () => currentModel;
 
 /**
- * Unified AI call router
+ * Unified AI call router with Heartbeat Stabilization
  */
-async function callAI(messages, temperature = 0.7, maxTokens = 2048) {
+async function callAI(messages, temperature = 0.7, maxTokens = 2048, onToken = null) {
   const endpoint = currentModel === 'gemini' ? '/api/gemini' : '/api/chat';
   
   try {
@@ -31,51 +31,76 @@ async function callAI(messages, temperature = 0.7, maxTokens = 2048) {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       console.error(`${currentModel} API Error:`, err);
+      const msg = err.error || err.message || `API error (${res.status})`;
       if (res.status === 429) {
         useToastStore.getState().addToast('API Rate limit reached.', 'warning');
       }
-      return `❌ API error (${res.status}).`;
+      return `❌ ${msg}`;
     }
 
-    // Stream Aggregator: Buffers chunks into a single string
-    // This 'heartbeat' mechanism prevents Vercel from killing the connection
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let accumulated = '';
+    let remainder = ''; // Buffer for partial lines across chunks
 
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
       
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n');
+      const chunk = decoder.decode(value || new Uint8Array(), { stream: !done });
+      const currentText = remainder + chunk;
+      const lines = currentText.split('\n');
+      
+      // Last element might be incomplete, save for next iteration
+      remainder = lines.pop() || '';
       
       for (const line of lines) {
-        if (!line.trim() || !line.startsWith('data: ')) continue;
-        const data = line.replace('data: ', '').trim();
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data: ')) continue;
+        
+        const data = trimmed.replace('data: ', '').trim();
         if (data === '[DONE]') break;
+        
         try {
           const parsed = JSON.parse(data);
-          // Handle both Groq and Gemini normalized formats
-          const token = parsed.choices?.[0]?.delta?.content || parsed.choices?.[0]?.message?.content || "";
-          accumulated += token;
+          const token = parsed.choices?.[0]?.delta?.content || "";
+          if (token) {
+            accumulated += token;
+            if (onToken) onToken(accumulated);
+          }
         } catch (e) {
-          // Skip partial/malformed JSON chunks
+          // Skip malformed tokens silently
         }
+      }
+
+      if (done) break;
+    }
+
+    // Process any leftover content in remainder if it contains a data line
+    if (remainder.trim().startsWith('data: ')) {
+      const data = remainder.trim().replace('data: ', '').trim();
+      if (data !== '[DONE]') {
+        try {
+          const parsed = JSON.parse(data);
+          const token = parsed.choices?.[0]?.delta?.content || "";
+          if (token) {
+            accumulated += token;
+            if (onToken) onToken(accumulated);
+          }
+        } catch (e) {}
       }
     }
 
     return accumulated.trim() || "No response generated.";
   } catch (error) {
     console.error(`${currentModel} Error:`, error);
-    return "❌ Connection timeout. AI is thinking too hard—please try again!";
+    return "❌ Connection timeout. Please try again.";
   }
 }
 
 /**
  * Send a chat message with conversation memory.
  */
-export async function sendChatMessage(message, externalHistory = []) {
+export async function sendChatMessage(message, externalHistory = [], onToken = null) {
   const formattedHistory = externalHistory.map(msg => ({
     role: msg.role === 'ai' ? 'assistant' : 'user',
     content: msg.text
@@ -90,7 +115,7 @@ export async function sendChatMessage(message, externalHistory = []) {
     { role: 'user', content: message }
   ];
 
-  return await callAI(messages);
+  return await callAI(messages, 0.7, 2048, onToken);
 }
 
 /**
@@ -347,7 +372,7 @@ ${notesContent.slice(0, 6000)}`
 /**
  * Chat with document context.
  */
-export async function sendChatWithDocument(message, documentText, externalHistory = []) {
+export async function sendChatWithDocument(message, documentText, externalHistory = [], onToken = null) {
   const formattedHistory = externalHistory.map(msg => ({
     role: msg.role === 'ai' ? 'assistant' : 'user',
     content: msg.text
@@ -368,5 +393,5 @@ Answer questions based on this document. Use markdown formatting. Be concise but
     { role: 'user', content: message }
   ];
 
-  return await callAI(messages);
+  return await callAI(messages, 0.7, 2048, onToken);
 }

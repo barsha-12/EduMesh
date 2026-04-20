@@ -32,15 +32,25 @@ export default function StudyNotes() {
     setIsGenerating(true);
     setGeneratedNotes('');
 
-    const notes = await generateStudyNotes(subject, topic);
-    setGeneratedNotes(notes);
-    setIsGenerating(false);
+    try {
+      const notes = await generateStudyNotes(subject, topic);
+      if (!notes) {
+        throw new Error('Synthesis engine failed to generate material.');
+      }
+      setGeneratedNotes(notes);
 
-    updateStats({
-      totalNotes: (useStudyStore.getState().studyStats.totalNotes || 0) + 1,
-      totalStudyMinutes: (useStudyStore.getState().studyStats.totalStudyMinutes || 0) + 5,
-    });
-    addSubjectStudied(subject);
+      updateStats({
+        totalNotes: (useStudyStore.getState().studyStats.totalNotes || 0) + 1,
+        totalStudyMinutes: (useStudyStore.getState().studyStats.totalStudyMinutes || 0) + 5,
+      });
+      addSubjectStudied(subject);
+    } catch (err) {
+      console.error('StudyNotes error:', err);
+      // In a real app we'd use a toast, but keeping consistent with the existing style
+      alert(err.message || 'Failed to generate study notes. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleSave = () => {

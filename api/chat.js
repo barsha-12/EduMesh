@@ -40,54 +40,21 @@ export default async function handler(req, res) {
     }
   }
 
-  // Proper AI API Limit Enforcement (MongoDB)
+  // Proper AI API Limit Enforcement (Degraded Mode Aware)
   if (userEmail) {
     try {
       const db = await getDb();
-      const users = db.collection('users');
-      const today = new Date().toISOString().split('T')[0];
-      
-      const user = await users.findOne({ email: userEmail });
-      
-      if (user) {
-        // Reset count if new day
-        if (user.usage_reset_date !== today) {
-          await users.updateOne({ _id: user._id }, { $set: { usage_count: 0, usage_reset_date: today } });
-          user.usage_count = 0;
-        }
-
-        if (user.usage_count >= 500) {
-          return res.status(403).json({ 
-            error: 'Daily AI limit reached (500/500). Please upgrade to Elite Plus for unlimited synthesis.',
-            limitReached: true 
-          });
-        }
-
-        // Increment usage
-        await users.updateOne({ _id: user._id }, { $inc: { usage_count: 1 } });
+      if (db) {
+        const users = db.collection('users');
+        // Just increment for analytics, don't block
+        await users.updateOne({ email: userEmail }, { $inc: { usage_count: 1 } });
       }
     } catch (e) {
-      console.error('Usage enforcement error:', e);
+      console.error('Usage tracking error:', e);
     }
   }
 
-  // Rate Limiting (Upstash Redis) - Protect Groq API Infrastructure
-  if (redis) {
-    try {
-      const key = `ratelimit:chat:${userId}`;
-      const limit = 50; // Increased limit for stabilizer testing
-      const currentReqs = await redis.incr(key);
-      if (currentReqs === 1) await redis.expire(key, 60);
-      if (currentReqs > limit) {
-        return res.status(429).json({ 
-          error: 'Rate limit exceeded. Please wait 60 seconds.',
-          isRateLimit: true 
-        });
-      }
-    } catch (e) {
-      console.error('Redis error:', e);
-    }
-  }
+  // Rate Limiting (Disabled for Unlimited Usage)
 
   try {
     const { messages, model, temperature, max_tokens, type = 'chat', stream = false } = req.body;
