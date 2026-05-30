@@ -3,30 +3,30 @@ import React from 'react';
 const Input = ({ label, error, disabled = false, icon: Icon = null, helperText, className = '', ...props }) => {
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
-      {label && <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>}
+      {label && <label className="text-sm font-medium font-body text-secondary">{label}</label>}
 
       <div className="relative flex items-center">
-        {Icon && <Icon className="absolute left-3 w-5 h-5 text-gray-500" />}
+        {Icon && <Icon className="absolute left-3 w-5 h-5 text-slate" />}
         <input
           className={`
-            w-full px-4 py-2.5 rounded-lg border-2 transition-colors
-            bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-            placeholder-gray-500 dark:placeholder-gray-400
+            w-full px-4 py-2.5 rounded-[14px] border-[1.5px] transition-all duration-300
+            bg-[rgba(255,255,255,0.80)] text-primary font-body
+            placeholder:text-muted
             ${Icon ? 'pl-10' : ''}
             ${error
-              ? 'border-red-500 focus:border-red-600 focus:ring-1 focus:ring-red-500'
-              : 'border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:focus:border-blue-400'
+              ? 'border-rose focus:border-rose focus:shadow-[0_0_0_4px_rgba(255,176,176,0.20)]'
+              : 'border-[rgba(204,204,204,0.50)] focus:border-lavender focus:shadow-[0_0_0_4px_rgba(208,170,255,0.20)]'
             }
-            ${disabled ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-700' : ''}
-            focus:outline-none
+            ${disabled ? 'opacity-50 cursor-not-allowed bg-[rgba(204,204,204,0.15)]' : ''}
+            focus:outline-none focus:bg-[rgba(255,255,255,0.95)]
           `}
           disabled={disabled}
           {...props}
         />
       </div>
 
-      {error && <span className="text-xs text-red-600 dark:text-red-400">{error}</span>}
-      {helperText && !error && <span className="text-xs text-gray-500 dark:text-gray-400">{helperText}</span>}
+      {error && <span className="text-xs font-body font-medium text-rose">{error}</span>}
+      {helperText && !error && <span className="text-xs font-body text-muted">{helperText}</span>}
     </div>
   );
 };

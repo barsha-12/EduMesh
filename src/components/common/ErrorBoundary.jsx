@@ -23,14 +23,14 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-[#f8fafc] dark:bg-[#050510] flex items-center justify-center p-6 text-center">
-          <div className="m3-card max-w-md w-full !p-12 space-y-8 shadow-2xl bg-white dark:bg-gray-800 border-none">
-            <div className="w-20 h-20 bg-rose-500/10 rounded-3xl flex items-center justify-center mx-auto text-rose-500 shadow-inner">
+        <div className="min-h-screen bg-page flex items-center justify-center p-6 text-center">
+          <div className="glass-base max-w-md w-full p-12 space-y-8">
+            <div className="w-20 h-20 bg-[rgba(255,176,176,0.20)] rounded-full flex items-center justify-center mx-auto text-rose">
               <AlertTriangle size={40} />
             </div>
             <div className="space-y-3">
-              <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Outfit, sans-serif' }}>System Interruption</h1>
-              <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
+              <h1 className="text-3xl font-bold font-display tracking-tight text-primary">System Interruption</h1>
+              <p className="text-secondary font-body text-sm leading-relaxed">
                 EduMesh encountered an unexpected runtime exception. This is likely due to a connection drop or a malformed data payload.
               </p>
             </div>
@@ -38,20 +38,20 @@ class ErrorBoundary extends React.Component {
             <div className="flex flex-col gap-3">
               <button 
                 onClick={this.handleReset}
-                className="btn-primary w-full py-4 flex items-center justify-center gap-3"
+                className="w-full py-4 rounded-pill bg-gradient-to-br from-periwinkle to-lavender text-primary font-body font-semibold shadow-[0_4px_16px_rgba(178,204,255,0.45)] hover:shadow-[0_8px_24px_rgba(178,204,255,0.60)] hover:scale-[1.03] active:scale-[0.97] transition-all duration-300 flex items-center justify-center gap-3"
               >
                 <RotateCcw size={18} /> Restore Platform
               </button>
               <button 
                 onClick={() => window.location.href = '/'}
-                className="text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-indigo-500 transition-colors py-2 flex items-center justify-center gap-2"
+                className="text-xs font-bold font-body uppercase tracking-widest text-muted hover:text-lavender transition-colors py-2 flex items-center justify-center gap-2"
               >
                 <Home size={14} /> Back to Gateway
               </button>
             </div>
 
-            <div className="pt-6 border-t border-gray-100 dark:border-white/5">
-               <p className="text-[10px] font-mono text-gray-300 uppercase tracking-tighter">
+            <div className="pt-6 border-t border-[rgba(204,204,204,0.30)]">
+               <p className="text-[10px] font-mono text-muted uppercase tracking-tighter">
                  Error Stack: {this.state.error?.message || 'Unknown Exception'}
                </p>
             </div>

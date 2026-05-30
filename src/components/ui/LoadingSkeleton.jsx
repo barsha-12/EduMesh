@@ -1,26 +1,26 @@
 import React from 'react';
 
 const variants = {
-  card: 'h-40 rounded-3xl',
+  card: 'h-40 rounded-card',
   text: 'h-4 rounded-lg',
   'text-sm': 'h-3 rounded-md',
   title: 'h-6 rounded-xl',
-  stat: 'h-28 rounded-3xl',
-  avatar: 'h-12 w-12 rounded-2xl',
-  chart: 'h-48 rounded-3xl',
+  stat: 'h-28 rounded-card',
+  avatar: 'h-12 w-12 rounded-[28%]',
+  chart: 'h-48 rounded-card',
 };
 
 export function Skeleton({ variant = 'text', className = '', width = 'w-full' }) {
   return (
     <div
-      className={`animate-pulse bg-gray-200/60 dark:bg-white/5 ${variants[variant] || variants.text} ${width} ${className}`}
+      className={`animate-pulse bg-[rgba(208,170,255,0.15)] ${variants[variant] || variants.text} ${width} ${className}`}
     />
   );
 }
 
 export function CardSkeleton({ className = '' }) {
   return (
-    <div className={`m3-card animate-pulse space-y-4 ${className}`}>
+    <div className={`glass-base p-6 animate-pulse space-y-4 ${className}`}>
       <Skeleton variant="title" width="w-1/3" />
       <div className="space-y-2">
         <Skeleton variant="text" width="w-full" />
@@ -35,7 +35,7 @@ export function StatsSkeleton({ count = 4 }) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="m3-card !p-5 animate-pulse space-y-4">
+        <div key={i} className="glass-base p-5 animate-pulse space-y-4">
           <Skeleton variant="avatar" width="w-12" />
           <div className="space-y-2">
             <Skeleton variant="title" width="w-20" />

@@ -114,10 +114,10 @@ export default function PomodoroTimer() {
             initial={{ scale: 0.8, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.8, opacity: 0, y: 20 }}
-            className="m3-card !p-6 shadow-2xl mb-3 w-[220px]"
+            className="glass-base !p-6 shadow-2xl mb-3 w-[220px]"
           >
             <div className="text-center space-y-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+              <p className="text-[10px] font-body font-bold uppercase tracking-widest text-secondary">
                 {isBreak ? '☕ Break Time' : '📚 Focus Time'}
               </p>
 
@@ -125,18 +125,28 @@ export default function PomodoroTimer() {
               <div className="relative w-24 h-24 mx-auto">
                 <svg className="w-24 h-24 -rotate-90" viewBox="0 0 96 96">
                   <circle cx="48" cy="48" r={radius} fill="none" stroke="currentColor" strokeWidth="4"
-                    className="text-gray-100 dark:text-white/5" />
+                    className="text-[rgba(204,204,204,0.3)]" />
                   <motion.circle
                     cx="48" cy="48" r={radius} fill="none"
                     strokeWidth="4" strokeLinecap="round"
-                    stroke={isBreak ? '#A0C2D2' : '#E8A2A2'}
+                    stroke={isBreak ? 'url(#periGrad)' : 'url(#coralGrad)'}
                     strokeDasharray={circumference}
                     animate={{ strokeDashoffset }}
                     transition={{ duration: 0.5 }}
                   />
+                  <defs>
+                    <linearGradient id="periGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="var(--color-periwinkle)" />
+                      <stop offset="100%" stopColor="var(--color-lavender)" />
+                    </linearGradient>
+                    <linearGradient id="coralGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="var(--color-coral)" />
+                      <stop offset="100%" stopColor="var(--color-peach)" />
+                    </linearGradient>
+                  </defs>
                 </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-lg font-bold tabular-nums">
+                <div className="absolute inset-0 flex items-center justify-center text-primary">
+                  <span className="text-lg font-bold font-display tabular-nums">
                     {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
                   </span>
                 </div>
@@ -146,17 +156,19 @@ export default function PomodoroTimer() {
               <div className="flex justify-center gap-3">
                 <button onClick={toggleTimer}
                   className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${
-                    isRunning ? 'bg-amber-500/10 text-amber-500' : 'bg-[#E8A2A2]/10 text-[#E8A2A2]'
+                    isRunning 
+                      ? 'bg-[rgba(255,187,170,0.2)] text-coral' 
+                      : 'bg-[rgba(208,170,255,0.15)] text-lavender hover:bg-[rgba(208,170,255,0.25)]'
                   }`}>
                   {isRunning ? <Pause size={18} /> : <Play size={18} />}
                 </button>
                 <button onClick={resetTimer}
-                  className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-white/5 flex items-center justify-center text-gray-400 hover:text-gray-600">
+                  className="w-10 h-10 rounded-2xl bg-[rgba(204,204,204,0.2)] flex items-center justify-center text-secondary hover:text-primary transition-colors">
                   <RotateCcw size={16} />
                 </button>
               </div>
 
-              <p className="text-[10px] text-gray-400">{sessions} session{sessions !== 1 ? 's' : ''} today</p>
+              <p className="text-[10px] font-body text-muted">{sessions} session{sessions !== 1 ? 's' : ''} today</p>
             </div>
           </motion.div>
         )}
@@ -165,18 +177,18 @@ export default function PomodoroTimer() {
       {/* Toggle Button */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className={`w-14 h-14 rounded-2xl shadow-xl flex items-center justify-center transition-all hover:scale-105 ${
+        className={`w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-105 ${
           isRunning
-            ? 'bg-[#E8A2A2] text-white shadow-[#E8A2A2]/30 animate-pulse-soft'
-            : 'bg-white dark:bg-gray-800 text-gray-500 border border-gray-100 dark:border-white/10'
+            ? 'bg-gradient-to-br from-coral to-peach text-primary shadow-[0_4px_16px_rgba(255,187,170,0.4)] animate-pulse-soft'
+            : 'bg-[rgba(255,255,255,0.9)] backdrop-blur-md text-secondary border-[1.5px] border-[rgba(204,204,204,0.5)] shadow-sm'
         }`}
       >
         {isRunning ? (
-          <span className="text-xs font-bold tabular-nums">
+          <span className="text-xs font-bold font-display tabular-nums text-primary">
             {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
           </span>
         ) : (
-          <Timer size={22} />
+          <Timer size={22} className={!isCollapsed ? 'text-lavender' : ''} />
         )}
       </button>
     </motion.div>

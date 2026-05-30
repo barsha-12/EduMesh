@@ -48,43 +48,43 @@ export default function CommandPalette() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-[rgba(58,60,74,0.40)] backdrop-blur-[4px]"
             onClick={() => setIsOpen(false)}
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="relative w-full max-w-2xl bg-v-bg rounded-3xl shadow-2xl overflow-hidden border border-v-surface"
+            className="relative w-full max-w-2xl glass-base overflow-hidden"
           >
-            <div className="flex items-center px-4 py-4 border-b border-v-surface">
-              <Search className="w-5 h-5 text-gray-400 mr-3 shrink-0" />
+            <div className="flex items-center px-5 py-4 border-b border-[rgba(204,204,204,0.30)]">
+              <Search className="w-5 h-5 text-slate mr-3 shrink-0" />
               <input
                 autoFocus
                 type="text"
                 placeholder="Where to? (e.g. Chat, Quiz, Notes)"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-transparent border-none focus:ring-0 text-lg placeholder-gray-400 outline-none"
+                className="w-full bg-transparent border-none text-lg font-body text-primary placeholder:text-muted outline-none"
               />
-              <div className="px-2 py-1 bg-v-surface rounded text-xs font-bold text-gray-500 uppercase">ESC</div>
+              <div className="px-2.5 py-1 bg-[rgba(204,204,204,0.20)] rounded-[8px] text-[10px] font-body font-bold text-muted uppercase tracking-widest">ESC</div>
             </div>
-            <div className="max-h-[60vh] overflow-y-auto p-2">
+            <div className="max-h-[60vh] overflow-y-auto p-2 chat-scroll">
               {filtered.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">No matching commands found.</div>
+                <div className="p-8 text-center font-body text-muted">No matching commands found.</div>
               ) : (
                 filtered.map((cmd) => (
                   <button
                     key={cmd.id}
                     onClick={() => executeCommand(cmd.path)}
-                    className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl hover:bg-v-surface/40 transition-colors text-left"
+                    className="w-full flex items-center gap-4 px-4 py-3 rounded-[16px] hover:bg-[rgba(208,170,255,0.08)] transition-all text-left group"
                   >
-                    <div className="w-10 h-10 rounded-xl bg-v-surface flex items-center justify-center shrink-0">
-                      <cmd.icon className="w-5 h-5 text-v-primary" />
+                    <div className="w-10 h-10 rounded-[14px] bg-[rgba(208,170,255,0.12)] flex items-center justify-center shrink-0 group-hover:bg-[rgba(208,170,255,0.22)] transition-colors">
+                      <cmd.icon className="w-5 h-5 text-lavender" />
                     </div>
                     <div>
-                      <h4 className="font-bold text-gray-800">{cmd.label}</h4>
-                      <p className="text-xs text-gray-400">Navigate to {cmd.path}</p>
+                      <h4 className="font-body font-semibold text-primary">{cmd.label}</h4>
+                      <p className="text-xs font-body text-muted">Navigate to {cmd.path}</p>
                     </div>
                   </button>
                 ))

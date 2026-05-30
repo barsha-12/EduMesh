@@ -12,24 +12,24 @@ const iconMap = {
 
 const colorMap = {
   success: {
-    bg: 'bg-emerald-500/10 border-emerald-500/20',
-    icon: 'text-emerald-500',
-    text: 'text-emerald-900 dark:text-emerald-200',
+    bg: 'bg-[rgba(178,255,212,0.25)] border-[1.5px] border-[rgba(178,255,212,0.5)]', // mint
+    icon: 'text-mint drop-shadow-[0_0_8px_rgba(178,255,212,0.8)]',
+    text: 'text-primary',
   },
   info: {
-    bg: 'bg-[#A0C2D2]/10 border-[#A0C2D2]/20',
-    icon: 'text-[#A0C2D2]',
-    text: 'text-[#2c2c2c] dark:text-[#A0C2D2]',
+    bg: 'bg-[rgba(178,204,255,0.25)] border-[1.5px] border-[rgba(178,204,255,0.5)]', // periwinkle
+    icon: 'text-periwinkle drop-shadow-[0_0_8px_rgba(178,204,255,0.8)]',
+    text: 'text-primary',
   },
   warning: {
-    bg: 'bg-amber-500/10 border-amber-500/20',
-    icon: 'text-amber-500',
-    text: 'text-amber-900 dark:text-amber-200',
+    bg: 'bg-[rgba(245,245,168,0.40)] border-[1.5px] border-[rgba(245,245,168,0.6)]', // lemon
+    icon: 'text-sand',
+    text: 'text-primary',
   },
   error: {
-    bg: 'bg-red-500/10 border-red-500/20',
-    icon: 'text-red-500',
-    text: 'text-red-900 dark:text-red-200',
+    bg: 'bg-[rgba(255,176,176,0.30)] border-[1.5px] border-[rgba(255,176,176,0.5)]', // rose
+    icon: 'text-rose drop-shadow-[0_0_8px_rgba(255,176,176,0.8)]',
+    text: 'text-primary',
   },
 };
 
@@ -50,17 +50,17 @@ export default function ToastContainer() {
               animate={{ opacity: 1, x: 0, scale: 1 }}
               exit={{ opacity: 0, x: -100, scale: 0.95 }}
               transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-2xl border backdrop-blur-xl shadow-xl ${colors.bg}`}
+              className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-card backdrop-blur-[16px] shadow-soft ${colors.bg}`}
             >
               <Icon className={`w-5 h-5 shrink-0 ${colors.icon}`} />
-              <p className={`text-sm font-medium flex-1 ${colors.text}`}>
+              <p className={`text-sm font-body font-medium flex-1 ${colors.text}`}>
                 {toast.message}
               </p>
               <button
                 onClick={() => removeToast(toast.id)}
-                className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors shrink-0"
+                className="p-1 rounded-lg hover:bg-[rgba(0,0,0,0.05)] transition-colors shrink-0"
               >
-                <X className="w-3.5 h-3.5 text-gray-400" />
+                <X className="w-4 h-4 text-secondary" />
               </button>
             </motion.div>
           );

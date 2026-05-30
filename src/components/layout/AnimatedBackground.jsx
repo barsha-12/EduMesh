@@ -1,39 +1,36 @@
 import React from 'react';
 
 const AnimatedBackground = () => {
+  const blobs = [
+    { bg: 'bg-lavender', size: 420, top: '-5%', left: '-8%', duration: 18, delay: 0 },
+    { bg: 'bg-periwinkle', size: 380, top: '15%', right: '-6%', duration: 22, delay: 2 },
+    { bg: 'bg-seafoam', size: 340, top: '55%', left: '10%', duration: 16, delay: 1 },
+    { bg: 'bg-peach', size: 300, top: '70%', right: '5%', duration: 20, delay: 4 },
+    { bg: 'bg-lemon', size: 260, top: '35%', left: '40%', duration: 14, delay: 3 },
+    { bg: 'bg-blush', size: 320, top: '-10%', right: '25%', duration: 24, delay: 5 },
+  ];
+
   return (
     <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-      {/* Lavender Blob */}
-      <div 
-        className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-lavender mix-blend-multiply opacity-30 animate-blob blur-[80px]"
-        style={{ animationDuration: '22s', animationDelay: '0s' }}
-      ></div>
-      
-      {/* Periwinkle Blob */}
-      <div 
-        className="absolute top-[20%] right-[-10%] w-[45vw] h-[45vw] rounded-full bg-periwinkle mix-blend-multiply opacity-25 animate-blob blur-[80px]"
-        style={{ animationDuration: '18s', animationDelay: '2s', animationDirection: 'alternate-reverse' }}
-      ></div>
-      
-      {/* Mint Blob */}
-      <div 
-        className="absolute bottom-[-20%] left-[10%] w-[60vw] h-[60vw] rounded-full bg-mint mix-blend-multiply opacity-30 animate-blob blur-[80px]"
-        style={{ animationDuration: '24s', animationDelay: '4s' }}
-      ></div>
-
-      {/* Peach Blob */}
-      <div 
-        className="absolute bottom-[10%] right-[10%] w-[40vw] h-[40vw] rounded-full bg-peach mix-blend-multiply opacity-35 animate-blob blur-[80px]"
-        style={{ animationDuration: '20s', animationDelay: '6s', animationDirection: 'alternate-reverse' }}
-      ></div>
-      
-      {/* Seafoam Blob */}
-      <div 
-        className="absolute top-[40%] left-[30%] w-[35vw] h-[35vw] rounded-full bg-seafoam mix-blend-multiply opacity-25 animate-blob blur-[80px]"
-        style={{ animationDuration: '26s', animationDelay: '1s' }}
-      ></div>
+      {blobs.map((blob, idx) => (
+        <div
+          key={idx}
+          className={`absolute rounded-full ${blob.bg} opacity-[0.32] animate-blob blur-[80px]`}
+          style={{
+            width: `${blob.size}px`,
+            height: `${blob.size}px`,
+            top: blob.top,
+            ...(blob.left ? { left: blob.left } : {}),
+            ...(blob.right ? { right: blob.right } : {}),
+            animationDuration: `${blob.duration}s`,
+            animationDelay: `${blob.delay}s`,
+            animationDirection: idx % 2 === 0 ? 'normal' : 'alternate-reverse'
+          }}
+        ></div>
+      ))}
     </div>
   );
 };
 
 export default AnimatedBackground;
+
