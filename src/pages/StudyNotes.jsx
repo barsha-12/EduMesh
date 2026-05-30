@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStudyStore } from '../store/studyStore';
-import { generateStudyNotes } from '../services/ai';
-import { FileText, Sparkles, Loader2, Trash2, ChevronDown, Clock, Download } from 'lucide-react';
+import { useToastStore } from '../store/toastStore';
+import { generateStudyNotes, generateFlashcards } from '../services/ai';
+import { FileText, Sparkles, Loader2, Trash2, ChevronDown, Clock, Download, Brain } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { marked } from 'marked';
 import GlassCard from '../components/ui/GlassCard';
@@ -18,14 +19,32 @@ const SUBJECTS = [
 const DEPTH_OPTIONS = ['Brief', 'Standard', 'Detailed'];
 
 export default function StudyNotes() {
-  const { savedNotes, saveNote, deleteNote, updateStats, addSubjectStudied } = useStudyStore();
+  const { savedNotes, saveNote, deleteNote, updateStats, addSubjectStudied, addFlashcards } = useStudyStore();
+  const addToast = useToastStore((s) => s.addToast);
   const [subject, setSubject] = useState('');
   const [topic, setTopic] = useState('');
   const [depth, setDepth] = useState('Standard');
   const [generatedNotes, setGeneratedNotes] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingFlashcards, setIsGeneratingFlashcards] = useState(false);
   const [expandedNote, setExpandedNote] = useState(null);
   const notesContainerRef = useRef(null);
+
+  const handleMakeFlashcards = async () => {
+    if (!generatedNotes) return;
+    setIsGeneratingFlashcards(true);
+    try {
+      const cards = await generateFlashcards(generatedNotes, subject, topic);
+      if (!cards || cards.length === 0) throw new Error('No flashcards could be generated.');
+      await addFlashcards(cards, subject, topic);
+      addToast(`Successfully created ${cards.length} flashcards!`, 'success');
+    } catch (err) {
+      console.error('Flashcard generation error:', err);
+      addToast(err.message || 'Failed to generate flashcards.', 'error');
+    } finally {
+      setIsGeneratingFlashcards(false);
+    }
+  };
 
   const handleGenerate = async (e) => {
     e.preventDefault();
@@ -290,7 +309,11 @@ export default function StudyNotes() {
                 </Pill>
 
                 {/* Save button */}
-                <div className="flex justify-end mb-4">
+                <div className="flex justify-end gap-3 mb-4">
+                  <Button size="sm" variant="ghost" className="border border-periwinkle text-periwinkle" onClick={handleMakeFlashcards} disabled={isGeneratingFlashcards}>
+                    {isGeneratingFlashcards ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Brain className="w-4 h-4 mr-1" />}
+                    {isGeneratingFlashcards ? 'Creating...' : 'Make Flashcards'}
+                  </Button>
                   <Button size="sm" onClick={handleSave}>
                     Save Notes ✦
                   </Button>
