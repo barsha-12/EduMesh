@@ -185,6 +185,19 @@ export const useStudyStore = create((set, get) => ({
     }
   },
 
+  deleteChatSession: async (sessionId) => {
+    set((state) => ({
+      chatSessions: state.chatSessions.filter(s => s.id !== sessionId),
+      activeChatSessionId: state.activeChatSessionId === sessionId ? null : state.activeChatSessionId,
+      chatMessages: state.activeChatSessionId === sessionId ? [] : state.chatMessages
+    }));
+    
+    if (sessionId && !sessionId.toString().startsWith('local-')) {
+       await dbProxy('chat_messages', 'delete', null, { session_id: sessionId });
+       await dbProxy('chat_sessions', 'delete', null, { id: sessionId });
+    }
+  },
+
   // ─── Notes ─────────────────────────────────────────────────
   savedNotes: JSON.parse(localStorage.getItem('edumesh-notes') || '[]'),
 

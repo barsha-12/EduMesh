@@ -23,7 +23,7 @@ export default function AIChat() {
   const { 
     chatMessages, addChatMessage, setChatLoading, 
     isChatLoading, clearChat, toggleBookmarkMessage,
-    chatSessions, activeChatSessionId, switchChatSession, createChatSession, loadChatHistory
+    chatSessions, activeChatSessionId, switchChatSession, createChatSession, loadChatHistory, deleteChatSession
   } = useStudyStore();
   
   const [inputText, setInputText] = useState('');
@@ -381,17 +381,25 @@ export default function AIChat() {
         <h3 className="font-display font-bold text-base text-primary mb-3">Recent Chats</h3>
         <div className="space-y-2 flex-1">
           {chatSessions.slice(0, 5).map(session => (
-            <button
-              key={session.id}
-              onClick={() => switchChatSession(session.id)}
-              className={`w-full text-left px-4 py-3 rounded-[12px] font-body text-sm transition-all truncate ${
-                activeChatSessionId === session.id 
-                  ? 'bg-[rgba(208,170,255,0.15)] text-primary font-semibold' 
-                  : 'text-secondary hover:bg-[rgba(204,204,204,0.15)]'
-              }`}
-            >
-              {session.title || 'Untitled Chat'}
-            </button>
+            <div key={session.id} className="relative group">
+              <button
+                onClick={() => switchChatSession(session.id)}
+                className={`w-full text-left px-4 py-3 rounded-[12px] font-body text-sm transition-all truncate pr-10 ${
+                  activeChatSessionId === session.id 
+                    ? 'bg-[rgba(208,170,255,0.15)] text-primary font-semibold' 
+                    : 'text-secondary hover:bg-[rgba(204,204,204,0.15)]'
+                }`}
+              >
+                {session.title || 'Untitled Chat'}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); deleteChatSession(session.id); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-muted hover:text-rose hover:bg-[rgba(255,176,176,0.2)] opacity-0 group-hover:opacity-100 transition-all"
+                title="Delete Session"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
           ))}
         </div>
 
