@@ -2,28 +2,30 @@ import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStudyStore } from '../store/studyStore';
 import { generateStudyNotes } from '../services/ai';
-import { FileText, Sparkles, Loader2, Trash2, ChevronDown, Clock, BookOpen, Download, Plus, LayoutGrid, Library, Search, Filter } from 'lucide-react';
+import { FileText, Sparkles, Loader2, Trash2, ChevronDown, Clock, Download } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { marked } from 'marked';
+import GlassCard from '../components/ui/GlassCard';
+import Button from '../components/ui/Button';
+import InputField from '../components/ui/InputField';
+import Pill from '../components/ui/Pill';
 
 const SUBJECTS = [
-  'Mathematics', 'Physics', 'Chemistry',  'Computer Science',
-  'Biology', 'English', 'Electronics', 'Data Structures',
-  'Engineering Drawing', 'Economics',
+  'Mathematics', 'Physics', 'Chemistry', 'Biology',
+  'History', 'Literature', 'Computer Science', 'Economics', 'Psychology',
 ];
+
+const DEPTH_OPTIONS = ['Brief', 'Standard', 'Detailed'];
 
 export default function StudyNotes() {
   const { savedNotes, saveNote, deleteNote, updateStats, addSubjectStudied } = useStudyStore();
   const [subject, setSubject] = useState('');
   const [topic, setTopic] = useState('');
+  const [depth, setDepth] = useState('Standard');
   const [generatedNotes, setGeneratedNotes] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [activeView, setActiveView] = useState('generate'); // 'generate' | 'saved'
   const [expandedNote, setExpandedNote] = useState(null);
   const notesContainerRef = useRef(null);
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterSubject, setFilterSubject] = useState('All');
 
   const handleGenerate = async (e) => {
     e.preventDefault();
@@ -34,9 +36,7 @@ export default function StudyNotes() {
 
     try {
       const notes = await generateStudyNotes(subject, topic);
-      if (!notes) {
-        throw new Error('Synthesis engine failed to generate material.');
-      }
+      if (!notes) throw new Error('Failed to generate notes.');
       setGeneratedNotes(notes);
 
       updateStats({
@@ -46,7 +46,6 @@ export default function StudyNotes() {
       addSubjectStudied(subject);
     } catch (err) {
       console.error('StudyNotes error:', err);
-      // In a real app we'd use a toast, but keeping consistent with the existing style
       alert(err.message || 'Failed to generate study notes. Please try again.');
     } finally {
       setIsGenerating(false);
@@ -64,7 +63,6 @@ export default function StudyNotes() {
     });
     setGeneratedNotes('');
     setTopic('');
-    setActiveView('saved');
   };
 
   const handleDownloadPDF = async () => {
@@ -73,10 +71,10 @@ export default function StudyNotes() {
     
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = `
-      <div style="font-family: Arial, sans-serif; color: #1a1a1a; padding: 40px; line-height: 1.6;">
-        <h1 style="color: #6366f1; margin-bottom: 5px;">EduMesh Study Material</h1>
-        <p style="color: #666; margin-bottom: 30px;">${subject} &bull; ${topic}</p>
-        <hr style="border: none; border-top: 1px solid #eee; margin-bottom: 30px;" />
+      <div style="font-family: 'Plus Jakarta Sans', Arial, sans-serif; color: #3A3C4A; padding: 40px; line-height: 1.75;">
+        <h1 style="font-family: 'Sora', sans-serif; color: #3A3C4A; margin-bottom: 5px; font-size: 24px;">EduMesh Study Notes</h1>
+        <p style="color: #6E7488; margin-bottom: 30px;">${subject} — ${topic}</p>
+        <hr style="border: none; border-top: 1px solid #CCCCCC; margin-bottom: 30px;" />
         ${htmlContent}
       </div>
     `;
@@ -95,242 +93,232 @@ export default function StudyNotes() {
 
   const renderMarkdown = (text) => {
     return text.split('\n').map((line, i) => {
-      if (line.startsWith('## ')) return <h2 key={i} className="text-xl font-black mt-10 mb-6 text-v-text tracking-tight" style={{ fontFamily: 'Outfit' }}>{line.slice(3)}</h2>;
-      if (line.startsWith('### ')) return <h3 key={i} className="text-lg font-black mt-8 mb-4 text-v-primary tracking-tight" style={{ fontFamily: 'Outfit' }}>{line.slice(4)}</h3>;
-      if (line.startsWith('- ') || line.startsWith('* ')) return <li key={i} className="ml-6 list-disc text-sm text-v-text/60 font-bold leading-relaxed mb-3">{line.slice(2)}</li>;
-      if (/^\d+\.\s/.test(line)) return <li key={i} className="ml-6 list-decimal text-sm text-v-text/60 font-bold leading-relaxed mb-3">{line.replace(/^\d+\.\s/, '')}</li>;
+      if (line.startsWith('## ')) return <h2 key={i} className="font-display font-bold text-[1.3rem] text-primary mt-6 mb-2">{line.slice(3)}</h2>;
+      if (line.startsWith('### ')) return <h3 key={i} className="font-body font-semibold text-base text-slate mt-4 mb-2">{line.slice(4)}</h3>;
+      if (line.startsWith('- ') || line.startsWith('* ')) {
+        return (
+          <li key={i} className="relative ml-4 mb-2 font-body text-base leading-[1.75] text-primary/80 pl-3">
+            <span className="absolute left-0 top-[10px] w-[6px] h-[6px] rounded-full bg-lavender"></span>
+            {renderInlineFormatting(line.slice(2))}
+          </li>
+        );
+      }
+      if (/^\d+\.\s/.test(line)) {
+        const num = line.match(/^(\d+)\./)[1];
+        return (
+          <li key={i} className="relative ml-4 mb-2 font-body text-base leading-[1.75] text-primary/80 pl-5">
+            <span className="absolute left-0 font-body font-bold text-orchid">{num}.</span>
+            {renderInlineFormatting(line.replace(/^\d+\.\s/, ''))}
+          </li>
+        );
+      }
       if (line.trim() === '') return <br key={i} />;
-      return <p key={i} className="text-sm text-v-text/60 font-bold leading-relaxed mb-4">{line}</p>;
+      if (line.startsWith('```')) return null;
+      if (line.startsWith('>')) return (
+        <blockquote key={i} className="border-l-[3px] border-periwinkle bg-[rgba(178,204,255,0.12)] p-4 mb-4 italic rounded-r-lg">
+          <span className="font-body font-semibold not-italic text-primary block mb-1">Example →</span>
+          {line.slice(1).trim()}
+        </blockquote>
+      );
+      return <p key={i} className="font-body text-base text-primary/80 leading-[1.75] mb-4">{renderInlineFormatting(line)}</p>;
     });
   };
 
-  const filteredNotes = savedNotes.filter(note => {
-    const matchesSearch = note.topic.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesSubject = filterSubject === 'All' || note.subject === filterSubject;
-    return matchesSearch && matchesSubject;
-  });
-
-  const uniqueSubjects = ['All', ...new Set(savedNotes.map(n => n.subject))];
+  const renderInlineFormatting = (text) => {
+    // Handle **bold** with lemon highlight
+    const parts = text.split(/(\*\*[^*]+\*\*)/);
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i} className="font-bold bg-[rgba(245,245,168,0.40)]">{part.slice(2, -2)}</strong>;
+      }
+      // Handle `code` with seafoam
+      const codeParts = part.split(/(`[^`]+`)/);
+      return codeParts.map((cp, j) => {
+        if (cp.startsWith('`') && cp.endsWith('`')) {
+          return <code key={`${i}-${j}`} className="font-mono text-sm bg-[rgba(168,255,236,0.20)] border-l-[3px] border-seafoam px-2 py-0.5 rounded">{cp.slice(1, -1)}</code>;
+        }
+        return cp;
+      });
+    });
+  };
 
   return (
-    <div className="min-h-screen bg-v-bg text-v-text transition-all duration-500 pb-32">
-      <main className="max-w-7xl mx-auto px-8 py-16 lg:py-24">
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="space-y-16">
-          
-          {/* Elite Header */}
-          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
-            <div className="space-y-6 text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-v-primary/10 border border-v-primary/10 text-v-primary text-[10px] font-black uppercase tracking-widest mx-auto lg:mx-0">
-                <FileText className="w-3 h-3" /> Core Synthesis
+    <motion.div 
+      initial={{ opacity: 0, y: 12 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      transition={{ duration: 0.3 }}
+      className="flex flex-col lg:flex-row gap-6 min-h-[calc(100vh-128px)]"
+    >
+      {/* Left Panel — Generation Controls */}
+      <div className="lg:w-[35%] lg:shrink-0">
+        <GlassCard variant="base" className="sticky top-4">
+          <h2 className="font-display font-bold text-[1.4rem] text-primary mb-1">Generate Notes</h2>
+          <p className="font-body text-secondary text-sm mb-6">AI creates structured study notes for any topic.</p>
+
+          <form onSubmit={handleGenerate} className="space-y-5">
+            {/* Subject */}
+            <div>
+              <label className="font-body font-semibold text-[0.85rem] text-secondary mb-2 block">Subject</label>
+              <select
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                className="w-full bg-[rgba(255,255,255,0.80)] border-[1.5px] border-[rgba(204,204,204,0.50)] rounded-[14px] px-4 py-3 font-body text-base text-primary outline-none appearance-none cursor-pointer transition-all focus:border-lavender focus:shadow-[0_0_0_4px_rgba(208,170,255,0.20)]"
+                required
+              >
+                <option value="">Select subject...</option>
+                {SUBJECTS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+
+            {/* Topic */}
+            <div>
+              <label className="font-body font-semibold text-[0.85rem] text-secondary mb-2 block">Topic</label>
+              <InputField 
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                placeholder="e.g. Electromagnetic Induction"
+                required
+              />
+            </div>
+
+            {/* Depth */}
+            <div>
+              <label className="font-body font-semibold text-[0.85rem] text-secondary mb-2 block">Depth</label>
+              <div className="flex bg-[rgba(255,255,255,0.5)] p-1 rounded-pill">
+                {DEPTH_OPTIONS.map(d => (
+                  <button 
+                    key={d} 
+                    type="button"
+                    onClick={() => setDepth(d)}
+                    className={`flex-1 py-2 rounded-pill text-sm font-body font-medium transition-all ${depth === d ? 'bg-gradient-to-r from-periwinkle to-lavender text-primary shadow-sm' : 'text-secondary'}`}
+                  >
+                    {d}
+                  </button>
+                ))}
               </div>
-              <h1 className="text-5xl lg:text-8xl font-black tracking-tighter leading-none" style={{ fontFamily: 'Outfit' }}>
-                Study <span className="text-v-primary">Notes</span>
-              </h1>
-              <p className="text-v-text/40 font-bold text-sm max-w-xl mx-auto lg:mx-0">
-                Transform complex topics into professional, structured research material using high-caliber AI engines.
-              </p>
             </div>
 
-            <div className="flex p-1.5 bg-v-surface rounded-[24px] w-fit shadow-inner mx-auto lg:mx-0">
-              <button
-                onClick={() => setActiveView('generate')}
-                className={`flex items-center gap-2 px-8 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                  activeView === 'generate' ? 'bg-white text-v-primary shadow-xl' : 'text-v-text/30 hover:text-v-text'
-                }`}
-              >
-                <Plus size={14} /> Power Generator
-              </button>
-              <button
-                onClick={() => setActiveView('saved')}
-                className={`flex items-center gap-2 px-8 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                  activeView === 'saved' ? 'bg-white text-v-primary shadow-xl' : 'text-v-text/30 hover:text-v-text'
-                }`}
-              >
-                <Library size={14} /> Research Vault ({savedNotes.length})
-              </button>
-            </div>
-          </div>
+            {/* Generate Button */}
+            <Button
+              type="submit"
+              size="lg"
+              disabled={isGenerating || !subject || !topic.trim()}
+              className="w-full"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-5 h-5" />
+                  Generate Notes ✦
+                </>
+              )}
+            </Button>
 
-          <AnimatePresence mode="wait">
-            {activeView === 'generate' ? (
-              <motion.div key="generate" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="space-y-12">
-                
-                {/* Elite Input Form */}
-                <div className="bg-white/40 backdrop-blur-3xl rounded-[60px] p-10 lg:p-16 border border-v-text/5 shadow-2xl">
-                  <form onSubmit={handleGenerate} className="space-y-12">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                      <div className="space-y-4">
-                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-v-text/20 ml-6">Research Discipline</label>
-                        <select
-                          value={subject}
-                          onChange={(e) => setSubject(e.target.value)}
-                          className="w-full bg-white border border-v-text/5 px-8 py-6 rounded-[32px] outline-none text-lg font-black appearance-none focus:shadow-2xl focus:shadow-v-primary/10 transition-all cursor-pointer box-border"
-                          required
-                        >
-                          <option value="">Select subject...</option>
-                          {SUBJECTS.map((s) => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                      </div>
-                      <div className="space-y-4">
-                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-v-text/20 ml-6">Target Topic</label>
-                        <input
-                          type="text"
-                          value={topic}
-                          onChange={(e) => setTopic(e.target.value)}
-                          placeholder="e.g. Neural Plasticity"
-                          className="w-full bg-white border border-v-text/5 px-8 py-6 rounded-[32px] outline-none text-lg font-black placeholder-v-text/10 focus:shadow-2xl focus:shadow-v-primary/10 transition-all box-border"
-                          required
-                        />
-                      </div>
-                    </div>
-                    
-                    <button
-                      type="submit"
-                      disabled={isGenerating || !subject || !topic.trim()}
-                      className="w-full lg:w-fit px-12 py-6 bg-v-primary text-white rounded-[32px] text-[10px] font-black uppercase tracking-widest shadow-2xl shadow-v-primary/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-4"
-                    >
-                      {isGenerating ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          Mapping Neural Pathways...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-5 h-5" />
-                          Initialize Synthesis
-                        </>
-                      )}
-                    </button>
-                  </form>
-                </div>
-
-                {/* Content Area */}
-                <AnimatePresence>
-                  {isGenerating && (
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white/40 backdrop-blur-xl rounded-[60px] p-16 space-y-10 animate-pulse border border-v-text/5">
-                      <div className="h-10 bg-v-text/5 rounded-[20px] w-1/3" />
-                      <div className="space-y-4">
-                        <div className="h-4 bg-v-text/5 rounded-full w-full" />
-                        <div className="h-4 bg-v-text/5 rounded-full w-5/6" />
-                        <div className="h-4 bg-v-text/5 rounded-full w-4/6" />
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {generatedNotes && !isGenerating && (
-                    <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} className="bg-white shadow-2xl rounded-[60px] overflow-hidden border border-v-text/5">
-                      <div className="p-10 lg:p-16 bg-v-primary/5 border-b border-v-text/5 flex flex-col lg:flex-row lg:items-center justify-between gap-10">
-                        <div className="flex items-center gap-8">
-                          <div className="w-20 h-20 rounded-[40px] bg-v-primary flex items-center justify-center shadow-2xl shadow-v-primary/30">
-                            <FileText className="w-10 h-10 text-white" />
-                          </div>
-                          <div className="space-y-1">
-                            <h2 className="text-3xl font-black tracking-tight" style={{ fontFamily: 'Outfit' }}>{topic}</h2>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-v-text/30">{subject} &bull; Elite Study Material</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-4">
-                          <button onClick={handleDownloadPDF} className="w-16 h-16 bg-white border border-v-text/5 rounded-[28px] flex items-center justify-center text-v-text/20 hover:text-v-primary transition-all shadow-sm">
-                            <Download size={24} />
-                          </button>
-                          <button onClick={handleSave} className="px-10 py-6 bg-v-primary text-white rounded-[32px] text-[10px] font-black uppercase tracking-widest shadow-xl shadow-v-primary/20 hover:scale-[1.02] transition-all">
-                            Store in Vault
-                          </button>
-                        </div>
-                      </div>
-                      <div className="p-10 lg:p-20 text-v-text/80 font-medium leading-loose selection:bg-v-primary selection:text-white" ref={notesContainerRef}>
-                        {renderMarkdown(generatedNotes)}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            ) : (
-              <motion.div key="saved" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }} className="space-y-10">
-                
-                {/* Vault Filters */}
-                {savedNotes.length > 0 && (
-                  <div className="flex flex-col lg:flex-row gap-6">
-                    <div className="relative flex-1 group">
-                      <Search className="absolute left-8 top-1/2 -translate-y-1/2 text-v-text/10 group-focus-within:text-v-primary transition-all" />
-                      <input 
-                        type="text" 
-                        placeholder="Search your library..." 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-white h-20 pl-20 pr-8 rounded-[32px] border border-v-text/5 outline-none font-bold text-lg placeholder-v-text/10 focus:shadow-xl transition-all"
-                      />
-                    </div>
-                    <div className="relative lg:w-64">
-                      <Filter className="absolute left-6 top-1/2 -translate-y-1/2 text-v-text/10 pointer-events-none" />
-                      <select 
-                        value={filterSubject}
-                        onChange={(e) => setFilterSubject(e.target.value)}
-                        className="w-full h-20 bg-white pl-16 pr-8 rounded-[32px] border border-v-text/5 outline-none text-[10px] font-black uppercase tracking-widest appearance-none cursor-pointer"
-                      >
-                        {uniqueSubjects.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 gap-6">
-                  {savedNotes.length === 0 ? (
-                    <div className="bg-white/40 backdrop-blur-xl rounded-[60px] p-24 text-center border border-v-text/5 flex flex-col items-center gap-8">
-                      <div className="w-24 h-24 bg-v-surface rounded-[40px] flex items-center justify-center shadow-inner">
-                        <Library className="w-12 h-12 text-v-text/10" />
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-xl font-black text-v-text/40 tracking-tight">Research Vault is Empty</p>
-                        <p className="text-sm font-bold text-v-text/20">Synthesize your first material to begin your collection.</p>
-                      </div>
-                      <button onClick={() => setActiveView('generate')} className="px-12 py-5 bg-v-primary text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-2xl shadow-v-primary/20 hover:scale-105 transition-all">
-                         Initialize Synthesis
-                      </button>
-                    </div>
-                  ) : (
-                    filteredNotes.map((note) => (
-                      <div key={note.id} className="bg-white/60 backdrop-blur-xl rounded-[40px] border border-v-text/5 overflow-hidden group hover:bg-white hover:shadow-2xl hover:shadow-v-primary/5 transition-all">
-                        <div className="p-8 flex items-center justify-between cursor-pointer" onClick={() => setExpandedNote(expandedNote === note.id ? null : note.id)}>
-                          <div className="flex items-center gap-8">
-                            <div className="w-16 h-16 rounded-[28px] bg-v-primary/10 flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-all">
-                              <FileText className="w-8 h-8 text-v-primary" />
-                            </div>
-                            <div className="space-y-1">
-                              <p className="font-black text-xl tracking-tighter leading-none" style={{ fontFamily: 'Outfit' }}>{note.topic}</p>
-                              <p className="text-[10px] font-black uppercase tracking-widest text-v-text/20 flex items-center gap-3">
-                                {note.subject} &bull; <Clock size={12} /> {new Date(note.createdAt).toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <button onClick={(e) => { e.stopPropagation(); deleteNote(note.id); }} className="w-12 h-12 rounded-[20px] flex items-center justify-center text-v-text/10 hover:text-rose-500 hover:bg-rose-50 transition-all opacity-0 group-hover:opacity-100">
-                              <Trash2 size={20} />
-                            </button>
-                            <div className={`w-12 h-12 rounded-[20px] bg-v-surface flex items-center justify-center text-v-text/30 transition-transform ${expandedNote === note.id ? 'rotate-180' : ''}`}>
-                              <ChevronDown size={22} />
-                            </div>
-                          </div>
-                        </div>
-
-                        <AnimatePresence>
-                          {expandedNote === note.id && (
-                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-v-text/[0.02]">
-                              <div className="p-12 lg:p-20 border-t border-v-text/5 text-sm lg:text-base font-medium leading-loose text-v-text/70" style={{ fontFamily: 'Inter' }}>
-                                {renderMarkdown(note.content)}
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </motion.div>
+            {/* Download PDF */}
+            {generatedNotes && !isGenerating && (
+              <Button variant="ghost" size="lg" onClick={handleDownloadPDF} className="w-full border-[1.5px] border-taupe">
+                <Download size={18} className="text-slate" />
+                📥 Download as PDF
+              </Button>
             )}
-          </AnimatePresence>
-        </motion.div>
-      </main>
-    </div>
+          </form>
+
+          {/* Saved Notes List */}
+          {savedNotes.length > 0 && (
+            <div className="mt-8 border-t border-[rgba(204,204,204,0.3)] pt-6">
+              <h3 className="font-body font-semibold text-sm text-secondary mb-3">Saved Notes ({savedNotes.length})</h3>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto chat-scroll">
+                {savedNotes.map(note => (
+                  <div key={note.id} 
+                    className={`flex items-center gap-3 px-3 py-2 rounded-[12px] cursor-pointer transition-all group ${expandedNote === note.id ? 'bg-gradient-to-r from-lavender/20 to-periwinkle/20' : 'hover:bg-[rgba(208,170,255,0.08)]'}`}
+                    onClick={() => {
+                      setExpandedNote(expandedNote === note.id ? null : note.id);
+                      if (expandedNote !== note.id) {
+                        setGeneratedNotes(note.content);
+                        setSubject(note.subject);
+                        setTopic(note.topic);
+                      }
+                    }}
+                  >
+                    <FileText size={16} className="text-periwinkle shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-body font-medium text-sm text-primary truncate">{note.topic}</p>
+                      <p className="font-body text-[0.7rem] text-muted">{note.subject}</p>
+                    </div>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); deleteNote(note.id); }}
+                      className="opacity-0 group-hover:opacity-100 text-pearl hover:text-rose transition-all"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </GlassCard>
+      </div>
+
+      {/* Right Panel — Notes Output */}
+      <div className="flex-1 min-w-0">
+        <AnimatePresence mode="wait">
+          {isGenerating ? (
+            /* Skeleton shimmer */
+            <motion.div key="skeleton" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <GlassCard variant="peach" className="animate-pulse space-y-6">
+                <div className="h-8 bg-[rgba(255,217,179,0.3)] rounded-pill w-1/3"></div>
+                <div className="space-y-3">
+                  <div className="h-4 bg-[rgba(255,217,179,0.2)] rounded-pill w-full"></div>
+                  <div className="h-4 bg-[rgba(255,217,179,0.2)] rounded-pill w-5/6"></div>
+                  <div className="h-4 bg-[rgba(255,217,179,0.2)] rounded-pill w-4/6"></div>
+                </div>
+                <div className="h-4 bg-[rgba(255,217,179,0.2)] rounded-pill w-full"></div>
+                <div className="h-4 bg-[rgba(255,217,179,0.2)] rounded-pill w-3/4"></div>
+              </GlassCard>
+            </motion.div>
+          ) : generatedNotes ? (
+            /* Generated Notes */
+            <motion.div key="notes" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              <GlassCard variant="peach">
+                {/* Header Pill */}
+                <Pill variant="subject" className="mb-6 text-sm">
+                  {subject} — {topic}
+                </Pill>
+
+                {/* Save button */}
+                <div className="flex justify-end mb-4">
+                  <Button size="sm" onClick={handleSave}>
+                    Save Notes ✦
+                  </Button>
+                </div>
+
+                {/* Notes Content */}
+                <div className="ai-notes selection:bg-lavender/30" ref={notesContainerRef}>
+                  {renderMarkdown(generatedNotes)}
+                </div>
+              </GlassCard>
+            </motion.div>
+          ) : (
+            /* Empty State */
+            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <GlassCard variant="base" className="flex flex-col items-center justify-center text-center py-24 min-h-[50vh]">
+                <div className="relative mb-6">
+                  <div className="w-16 h-16 rounded-full bg-lavender/30 absolute -top-2 -left-2 animate-[float_6s_ease-in-out_infinite]"></div>
+                  <div className="w-20 h-20 rounded-full bg-mint/30 absolute -bottom-2 -right-2 animate-[float_8s_ease-in-out_infinite_reverse]"></div>
+                  <div className="w-24 h-24 rounded-full bg-peach/30 relative animate-[float_5s_ease-in-out_infinite] flex items-center justify-center">
+                    <FileText size={32} className="text-secondary" />
+                  </div>
+                </div>
+                <p className="font-body text-muted mt-4">Select a subject and topic to generate notes</p>
+              </GlassCard>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
   );
 }

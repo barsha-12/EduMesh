@@ -1,45 +1,41 @@
 import React from 'react';
+import { cn } from './GlassCard'; // Reusing cn utility
+
+const variants = {
+  primary: 'bg-gradient-to-br from-periwinkle to-lavender text-primary shadow-[0_4px_16px_rgba(178,204,255,0.45)] hover:shadow-[0_8px_24px_rgba(178,204,255,0.60)]',
+  secondary: 'bg-[rgba(255,255,255,0.6)] border-[1.5px] border-taupe text-primary',
+  danger: 'bg-gradient-to-br from-rose to-coral text-primary',
+  success: 'bg-gradient-to-br from-mint to-lime text-primary',
+  ghost: 'bg-transparent text-secondary hover:bg-[rgba(0,0,0,0.05)]',
+};
+
+const sizes = {
+  sm: 'px-4 py-2 text-sm',
+  md: 'px-7 py-3 text-[0.9rem]',
+  lg: 'px-8 py-4 text-base w-full',
+};
 
 const Button = ({
   children,
-  variant = 'filled',
+  variant = 'primary',
   size = 'md',
-  disabled = false,
-  fullWidth = false,
-  icon: Icon = null,
-  onClick,
-  className = '',
+  className,
+  disabled,
   ...props
 }) => {
-  const sizes = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2 text-base',
-    lg: 'px-6 py-3 text-lg',
-  };
-
-  const variants = {
-    filled: 'bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600',
-    outlined: 'border-2 border-gray-300 text-gray-900 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-100 dark:hover:bg-gray-800',
-    text: 'text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-gray-800',
-    elevated: 'bg-blue-100 text-blue-900 hover:bg-blue-200 dark:bg-gray-800 dark:text-blue-300 dark:hover:bg-gray-700',
-  };
-
-  const disabledClass = disabled ? 'opacity-50 cursor-not-allowed' : '';
-
   return (
     <button
-      className={`
-        inline-flex items-center justify-center gap-2 rounded-lg font-medium
-        transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2
-        focus:ring-blue-500 dark:focus:ring-offset-gray-950
-        ${sizes[size]} ${variants[variant]} ${disabledClass}
-        ${fullWidth ? 'w-full' : ''} ${className}
-      `}
       disabled={disabled}
-      onClick={onClick}
+      className={cn(
+        'font-body font-semibold rounded-pill transition-all duration-300 flex items-center justify-center gap-2',
+        'hover:scale-[1.03] active:scale-[0.97]',
+        disabled && 'opacity-50 cursor-not-allowed hover:scale-100 active:scale-100',
+        variants[variant],
+        sizes[size],
+        className
+      )}
       {...props}
     >
-      {Icon && <Icon size={16} />}
       {children}
     </button>
   );

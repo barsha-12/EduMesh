@@ -59,10 +59,10 @@ const AppContent = () => {
 
   if (isInitializing) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-v-bg">
+      <div className="flex items-center justify-center min-h-screen bg-page">
         <div className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-v-primary to-v-accent rounded-full animate-pulse mx-auto mb-4" />
-          <p className="text-v-text/40 font-bold tracking-widest uppercase text-[10px]">Initializing Elite Studio...</p>
+          <div className="w-16 h-16 bg-gradient-to-br from-lavender to-periwinkle rounded-full animate-pulse mx-auto mb-4" />
+          <p className="text-secondary font-body font-bold tracking-widest uppercase text-[10px]">Loading EduMesh...</p>
         </div>
       </div>
     );

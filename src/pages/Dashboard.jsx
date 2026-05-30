@@ -3,58 +3,39 @@ import { motion } from 'framer-motion';
 import { useStudyStore } from '../store/studyStore';
 import { useAuthStore } from '../store/authStore';
 import { Link } from 'react-router-dom';
-import { MessageSquare, FileText, Brain, Flame, Clock, Trophy, BookOpen, ArrowRight, Sparkles, Target, BarChart2, Plus, Layers, GraduationCap } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import KnowledgeOrb from '../components/three/KnowledgeOrb';
-import ExamCountdown from '../components/ui/ExamCountdown';
+import { Bot, FileText, Brain, Flame, ArrowRight, Sparkles, Target, Clock } from 'lucide-react';
+import GlassCard from '../components/ui/GlassCard';
+import Pill from '../components/ui/Pill';
+import Button from '../components/ui/Button';
 
 export default function Dashboard() {
   const { user } = useAuthStore();
-  const { studyStats, savedNotes, quizHistory, syncFromSupabase, getDueFlashcards, flashcards, loadFlashcards } = useStudyStore();
+  const { studyStats, savedNotes, quizHistory, syncFromSupabase } = useStudyStore();
 
   const displayName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'Student';
 
   useEffect(() => {
     syncFromSupabase();
-    loadFlashcards();
   }, []);
-
-  const dueCards = getDueFlashcards();
-
-  // Per-subject analytics
-  const subjectScores = {};
-  quizHistory.forEach((q) => {
-    if (!subjectScores[q.subject]) subjectScores[q.subject] = [];
-    subjectScores[q.subject].push(q.score);
-  });
-
-  const chartData = Object.entries(subjectScores).map(([subject, scores]) => ({
-    subject: subject.length > 12 ? subject.slice(0, 12) + '…' : subject,
-    fullSubject: subject,
-    avgScore: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length),
-  }));
-
-  const lowestSubject = chartData.length > 0
-    ? chartData.reduce((a, b) => a.avgScore < b.avgScore ? a : b)
-    : null;
 
   const avgScore = quizHistory.length > 0
     ? Math.round(quizHistory.reduce((a, q) => a + q.score, 0) / quizHistory.length)
     : 0;
 
-  const quickActions = [
-    { title: 'AI Study Chat', desc: 'Ask any doubt and get instant explanations', icon: MessageSquare, color: 'from-v-secondary to-[#87a5b3]', link: '/chat', badge: 'Most Used' },
-    { title: 'Generate Notes', desc: 'AI creates structured notes on any topic', icon: FileText, color: 'from-v-primary to-v-accent', link: '/notes', badge: null },
-    { title: 'Practice Quiz', desc: 'Test yourself with AI-generated MCQs', icon: Brain, color: 'from-v-accent to-v-primary', link: '/quiz', badge: null },
-    { title: 'Feynman Mode', desc: 'Teach the AI to find your knowledge gaps', icon: GraduationCap, color: 'from-[#A0C2D2] to-[#D5E3E8]', link: '/feynman', badge: 'New' },
-  ];
+  const streak = studyStats.streak || 0;
 
-  const stats = [
-    { label: 'Study Streak', value: `${studyStats.streak || 0} days`, icon: Flame, color: 'text-v-accent', bgColor: 'bg-v-accent/10' },
-    { label: 'Notes Created', value: savedNotes.length, icon: FileText, color: 'text-v-primary', bgColor: 'bg-v-primary/10' },
-    { label: 'Quizzes Taken', value: quizHistory.length, icon: Brain, color: 'text-v-secondary', bgColor: 'bg-v-secondary/10' },
-    { label: 'Avg Score', value: quizHistory.length > 0 ? `${avgScore}%` : '—', icon: Target, color: 'text-v-secondary', bgColor: 'bg-v-secondary/10' },
-  ];
+  // Get current day of week
+  const today = new Date();
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const dateString = `${dayNames[today.getDay()]} ${today.getDate()} ${monthNames[today.getMonth()]}`;
+
+  const getGreeting = () => {
+    const h = today.getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -63,163 +44,217 @@ export default function Dashboard() {
 
   const itemVariants = {
     hidden: { y: 20, opacity: 0 },
-    visible: { y: 0, opacity: 1, transition: { duration: 0.4 } },
+    visible: { y: 0, opacity: 1, transition: { duration: 0.4, ease: 'easeOut' } },
   };
 
-  const barColors = ['#E8A2A2', '#A0C2D2', '#EAC7C7', '#D5E3E8', '#a78bfa', '#f59e0b', '#10b981', '#f472b6'];
+  // Score donut SVG
+  const ScoreDonut = ({ value }) => {
+    const radius = 36;
+    const circumference = 2 * Math.PI * radius;
+    const offset = circumference - (value / 100) * circumference;
+    return (
+      <svg width="80" height="80" viewBox="0 0 80 80" className="shrink-0">
+        <circle cx="40" cy="40" r={radius} fill="none" stroke="rgba(204,204,204,0.25)" strokeWidth="6" />
+        <circle
+          cx="40" cy="40" r={radius} fill="none"
+          stroke="url(#mintGrad)" strokeWidth="6"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          transform="rotate(-90 40 40)"
+          className="transition-all duration-1000"
+        />
+        <defs>
+          <linearGradient id="mintGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#B2FFD4" />
+            <stop offset="100%" stopColor="#A8FFEC" />
+          </linearGradient>
+        </defs>
+      </svg>
+    );
+  };
+
+  // Recent activity items
+  const recentActivity = [];
+  savedNotes.slice(0, 3).forEach(note => {
+    recentActivity.push({
+      icon: '📝',
+      title: `${note.subject} Notes — ${note.topic}`,
+      timestamp: note.createdAt,
+      subject: note.subject,
+      type: 'note',
+    });
+  });
+  quizHistory.slice(0, 3).forEach(q => {
+    recentActivity.push({
+      icon: '🧠',
+      title: `${q.subject} Quiz — ${q.topic || 'General'}`,
+      timestamp: q.createdAt,
+      subject: q.subject,
+      type: 'quiz',
+    });
+  });
+  recentActivity.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  const getTimeAgo = (ts) => {
+    const diff = Date.now() - new Date(ts).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  };
 
   return (
-    <div className="min-h-screen bg-v-bg text-v-text transition-all duration-500">
-      <main className="max-w-7xl mx-auto px-6 py-8 sm:py-12 pb-24 lg:pb-12">
-        <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-12">
-          
-          {/* Greeting + Orb */}
-          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-between gap-8">
-            <div className="space-y-4 text-center sm:text-left">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-v-primary/10 border border-v-primary/10 text-v-primary text-[10px] font-black uppercase tracking-widest">
-                <Sparkles size={12} className="fill-current" /> Studio Session Active
-              </div>
-              <h1 className="text-4xl sm:text-6xl font-black tracking-tighter leading-none" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                Hey, <span className="text-v-primary">{displayName}</span> 👋
-              </h1>
-              <p className="text-v-text/40 max-w-lg font-bold text-sm leading-relaxed">
-                Your neural studio is calibrated. What shall we synthesize today?
-              </p>
-            </div>
-            <div className="shrink-0">
-               <div className="w-48 h-48 bg-v-secondary/20 rounded-full blur-3xl absolute -z-10 animate-pulse" />
-               <KnowledgeOrb avgScore={avgScore} />
-            </div>
-          </motion.div>
+    <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-10">
+      {/* Header */}
+      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="font-display font-bold text-[2rem] text-primary">
+            {getGreeting()}, {displayName} ✦
+          </h1>
+          <p className="font-body text-secondary mt-1">Ready to synthesize?</p>
+        </div>
+        <Pill variant="badge" className="bg-lemon text-primary font-body font-medium px-4 py-2 text-sm">
+          {dateString}
+        </Pill>
+      </motion.div>
 
-          {/* Stats Grid */}
-          <motion.div variants={itemVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {stats.map((stat, i) => (
-              <div key={i} className="bg-white/40 backdrop-blur-xl p-6 sm:p-8 rounded-[40px] border border-v-text/5 flex flex-col gap-6 hover:shadow-2xl hover:shadow-v-primary/5 transition-all group">
-                <div className={`w-14 h-14 rounded-2xl ${stat.bgColor} flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform`}>
-                  <stat.icon className={`w-7 h-7 ${stat.color}`} />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-3xl font-black tracking-tighter" style={{ fontFamily: 'Outfit' }}>{stat.value}</p>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-v-text/30">{stat.label}</p>
-                </div>
+      {/* Stats Row */}
+      <motion.div variants={itemVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Streak */}
+        <GlassCard variant="periwinkle" className="relative overflow-hidden">
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-coral rounded-l-card"></div>
+          <div className="pl-3">
+            <p className="font-display font-[800] text-[3rem] leading-none text-coral">{streak}</p>
+            <p className="font-body text-secondary text-sm mt-1">Day Streak</p>
+            <p className="font-body text-muted text-[0.75rem] mt-1">🔥 Keep going!</p>
+          </div>
+          <div className="mt-3 h-1.5 bg-[rgba(204,204,204,0.25)] rounded-pill overflow-hidden">
+            <div
+              className="h-full rounded-pill bg-gradient-to-r from-lemon to-coral transition-all duration-700"
+              style={{ width: `${Math.min((streak / 30) * 100, 100)}%` }}
+            ></div>
+          </div>
+        </GlassCard>
+
+        {/* Notes */}
+        <GlassCard variant="periwinkle" className="relative overflow-hidden">
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-periwinkle rounded-l-card"></div>
+          <div className="pl-3">
+            <p className="font-display font-[800] text-[3rem] leading-none text-periwinkle">{savedNotes.length}</p>
+            <p className="font-body text-secondary text-sm mt-1">Notes Created</p>
+            <p className="font-body text-muted text-[0.75rem] mt-1">📝 +{Math.min(savedNotes.length, 3)} this week</p>
+          </div>
+        </GlassCard>
+
+        {/* Quizzes */}
+        <GlassCard variant="periwinkle" className="relative overflow-hidden">
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-orchid rounded-l-card"></div>
+          <div className="pl-3">
+            <p className="font-display font-[800] text-[3rem] leading-none text-orchid">{quizHistory.length}</p>
+            <p className="font-body text-secondary text-sm mt-1">Quizzes Taken</p>
+            <p className="font-body text-muted text-[0.75rem] mt-1">
+              Last: {quizHistory[0]?.subject || 'None yet'}
+            </p>
+          </div>
+        </GlassCard>
+
+        {/* Avg Score */}
+        <GlassCard variant="periwinkle" className="relative overflow-hidden">
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-lime rounded-l-card"></div>
+          <div className="pl-3 flex items-center gap-3">
+            <div>
+              <p className="font-display font-[800] text-[3rem] leading-none" style={{ color: '#7DC9A0' }}>{avgScore}%</p>
+              <p className="font-body text-secondary text-sm mt-1">Avg. Score</p>
+              <p className="font-body text-muted text-[0.75rem] mt-1">↑ Keep improving!</p>
+            </div>
+            <ScoreDonut value={avgScore} />
+          </div>
+        </GlassCard>
+      </motion.div>
+
+      {/* Quick Actions Row */}
+      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* AI Study Chat */}
+        <GlassCard variant="lavender" className="flex flex-col group">
+          <div className="flex items-start justify-between mb-4">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-lavender to-periwinkle flex items-center justify-center shadow-lg">
+              <Bot size={28} className="text-white" />
+            </div>
+            <Pill variant="badge" className="bg-lemon text-primary">Powered by Groq</Pill>
+          </div>
+          <h3 className="font-body font-semibold text-lg text-primary">AI Study Chat</h3>
+          <p className="font-body text-secondary text-sm mt-1 flex-1">Ask any question and get instant AI explanations.</p>
+          <Link to="/chat" className="mt-4">
+            <Button variant="primary" size="sm" className="bg-gradient-to-br from-periwinkle to-lavender">
+              Ask Now →
+            </Button>
+          </Link>
+        </GlassCard>
+
+        {/* Smart Notes */}
+        <GlassCard variant="peach" className="flex flex-col group">
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-peach to-coral flex items-center justify-center shadow-lg mb-4">
+            <FileText size={28} className="text-white" />
+          </div>
+          <h3 className="font-body font-semibold text-lg text-primary">Smart Notes</h3>
+          <p className="font-body text-secondary text-sm mt-1 flex-1">Generate AI study notes for any subject and topic.</p>
+          <Link to="/notes" className="mt-4">
+            <Button variant="primary" size="sm" className="bg-gradient-to-br from-coral to-peach">
+              Generate →
+            </Button>
+          </Link>
+        </GlassCard>
+
+        {/* Practice Quiz */}
+        <GlassCard variant="seafoam" className="flex flex-col group">
+          <div className="flex items-start justify-between mb-4">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-seafoam to-mint flex items-center justify-center shadow-lg">
+              <Brain size={28} className="text-white" />
+            </div>
+            <Pill variant="badge" className="bg-blush text-primary">MCQ</Pill>
+          </div>
+          <h3 className="font-body font-semibold text-lg text-primary">Practice Quiz</h3>
+          <p className="font-body text-secondary text-sm mt-1 flex-1">Test your knowledge with AI-generated MCQ quizzes.</p>
+          <Link to="/quiz" className="mt-4">
+            <Button variant="primary" size="sm" className="bg-gradient-to-br from-mint to-seafoam">
+              Start Quiz →
+            </Button>
+          </Link>
+        </GlassCard>
+      </motion.div>
+
+      {/* Recent Activity */}
+      <motion.div variants={itemVariants}>
+        <h2 className="font-display font-bold text-[1.5rem] text-primary mb-6">Recent Activity</h2>
+        {recentActivity.length === 0 ? (
+          <GlassCard variant="base" className="text-center py-12">
+            <Sparkles className="mx-auto text-lavender mb-3" size={32} />
+            <p className="font-body text-secondary">No activity yet. Start chatting, generating notes, or taking quizzes!</p>
+          </GlassCard>
+        ) : (
+          <div className="relative border-l-2 border-dashed border-[rgba(192,178,160,0.4)] ml-4 space-y-4 pl-6">
+            {recentActivity.slice(0, 5).map((item, i) => (
+              <div key={i} className="flex items-center gap-4 group">
+                {/* Timeline dot */}
+                <div className="absolute -left-[5px] w-[10px] h-[10px] rounded-full bg-lavender border-2 border-white shadow-sm" style={{ marginTop: i === 0 ? 0 : undefined }}></div>
+                <GlassCard variant="base" interactive={false} className="flex-1 flex items-center gap-4 py-3 px-5">
+                  <span className="text-lg">{item.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-body font-medium text-primary text-sm truncate">{item.title}</p>
+                  </div>
+                  <Pill variant="custom" className="bg-[rgba(204,204,204,0.2)] text-muted text-[0.7rem] whitespace-nowrap">
+                    <Clock size={12} className="mr-1" />
+                    {getTimeAgo(item.timestamp)}
+                  </Pill>
+                  <Pill variant="subject">{item.subject}</Pill>
+                </GlassCard>
               </div>
             ))}
-          </motion.div>
-
-          {/* Quick Actions */}
-          <motion.div variants={itemVariants} className="space-y-8">
-            <div className="flex items-center gap-3">
-               <div className="w-1.5 h-6 bg-v-primary rounded-full" />
-               <h2 className="text-2xl font-black tracking-tight" style={{ fontFamily: 'Outfit, sans-serif' }}>Command Hub</h2>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {quickActions.map((action, i) => (
-                <Link key={i} to={action.link} className="flex flex-col group">
-                  <div className="bg-white/60 backdrop-blur-2xl rounded-[48px] border border-v-text/5 overflow-hidden h-full flex flex-col hover:shadow-2xl hover:shadow-v-primary/10 transition-all hover:-translate-y-2">
-                    <div className="p-8 flex-1 space-y-6">
-                      <div className="flex items-start justify-between">
-                        <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${action.color} flex items-center justify-center shadow-xl shadow-v-primary/20 group-hover:rotate-12 transition-all`}>
-                          <action.icon className="w-7 h-7 text-white" />
-                        </div>
-                        {action.badge && (
-                          <span className="text-[10px] font-black px-3 py-1.5 rounded-full bg-v-accent text-v-text uppercase tracking-widest shadow-sm">
-                            {action.badge}
-                          </span>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <h3 className="text-xl font-black tracking-tight" style={{ fontFamily: 'Outfit' }}>{action.title}</h3>
-                        <p className="text-xs text-v-text/40 font-bold leading-relaxed">{action.desc}</p>
-                      </div>
-                    </div>
-                    <div className="px-8 py-4 bg-v-text/[0.03] border-t border-v-text/5 flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-v-text/20">Initialize</span>
-                      <ArrowRight className="w-4 h-4 text-v-text/20 group-hover:text-v-primary group-hover:translate-x-1 transition-all" />
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </motion.div>
-
-          {/* Activity Section */}
-          <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            {/* Recent Notes */}
-            <div className="space-y-8">
-              <div className="flex items-center justify-between px-4">
-                <h2 className="text-2xl font-black tracking-tight" style={{ fontFamily: 'Outfit, sans-serif' }}>Recent Material</h2>
-                <Link to="/notes" className="text-[10px] font-black uppercase tracking-widest text-v-primary hover:scale-105 transition-all">Library →</Link>
-              </div>
-              {savedNotes.length === 0 ? (
-                <div className="bg-white/40 backdrop-blur-xl rounded-[48px] text-center border border-v-text/5 py-16 px-8 flex flex-col items-center gap-6">
-                  <div className="w-20 h-20 rounded-[32px] bg-v-surface flex items-center justify-center shadow-inner">
-                    <BookOpen className="w-10 h-10 text-v-text/20" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-bold text-v-text/40 uppercase tracking-widest">Vault Empty</p>
-                    <p className="text-xs font-medium text-v-text/20">Your synthesized notes will appear here.</p>
-                  </div>
-                  <Link to="/notes" className="px-8 py-4 bg-v-primary text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-xl shadow-v-primary/20 hover:scale-105 transition-all">
-                    Generate First Notes
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {savedNotes.slice(0, 3).map((note) => (
-                    <div key={note.id} className="bg-white/60 backdrop-blur-xl p-6 rounded-[32px] border border-v-text/5 flex items-center gap-6 group cursor-pointer hover:shadow-xl transition-all hover:bg-white">
-                      <div className="w-14 h-14 rounded-2xl bg-v-primary/10 flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-all">
-                        <FileText className="w-7 h-7 text-v-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-black text-lg tracking-tight truncate">{note.topic}</p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-v-text/20 mt-1">{note.subject} • {new Date(note.createdAt).toLocaleDateString()}</p>
-                      </div>
-                      <ArrowRight className="w-5 h-5 text-v-text/10 group-hover:text-v-primary group-hover:translate-x-1 transition-all" />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Performance Analytics Snapshot */}
-            <div className="space-y-8">
-              <div className="flex items-center justify-between px-4">
-                <h2 className="text-2xl font-black tracking-tight" style={{ fontFamily: 'Outfit, sans-serif' }}>Neural Progress</h2>
-                <Link to="/quiz" className="text-[10px] font-black uppercase tracking-widest text-v-primary hover:scale-105 transition-all">Analytics →</Link>
-              </div>
-              
-              <div className="bg-white/40 backdrop-blur-xl p-10 rounded-[48px] border border-v-text/5 shadow-lg">
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                    <XAxis dataKey="subject" tick={{ fontSize: 9, fill: 'var(--v-text)', opacity: 0.3, fontWeight: 900 }} axisLine={false} tickLine={false} />
-                    <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: 'var(--v-text)', opacity: 0.3, fontWeight: 900 }} axisLine={false} tickLine={false} />
-                    <Tooltip
-                      contentStyle={{ background: 'var(--v-text)', border: 'none', borderRadius: '24px', color: '#fff', fontSize: '10px', padding: '12px' }}
-                      formatter={(value, name, props) => [`${value}%`, props.payload.fullSubject]}
-                    />
-                    <Bar dataKey="avgScore" radius={[12, 12, 0, 0]} maxBarSize={32}>
-                      {chartData.map((entry, i) => (
-                        <Cell key={i} fill={barColors[i % barColors.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-                
-                {lowestSubject && (
-                  <div className="mt-8 flex items-center gap-3 px-4 py-3 rounded-2xl bg-v-primary/10 border border-v-primary/10 w-full animate-pulse">
-                    <Target size={16} className="text-v-primary" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-v-primary">
-                      Expansion required: {lowestSubject.fullSubject} ({lowestSubject.avgScore}%)
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
-      </main>
-    </div>
+          </div>
+        )}
+      </motion.div>
+    </motion.div>
   );
 }

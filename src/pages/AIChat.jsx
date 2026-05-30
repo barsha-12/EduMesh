@@ -4,67 +4,21 @@ import { useStudyStore } from '../store/studyStore';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { 
-  Send, Search, Download, Trash2, 
-  Plus, Mic, MicOff, Check, Copy, Star,
-  Volume2, VolumeX, MessageCircle
+  Send, Trash2, Plus, Mic, Check, Copy, Star,
+  Volume2, VolumeX, Paperclip, Bot
 } from 'lucide-react';
 import { sendChatMessage } from '../services/ai';
+import GlassCard from '../components/ui/GlassCard';
+import Pill from '../components/ui/Pill';
 
-const PillToggle = ({ label, active, onToggle }) => (
-  <div style={{
-    display: 'flex', alignItems: 'center', gap: '12px',
-    padding: '8px 16px', background: '#F0F2F5', borderRadius: '30px',
-    border: '1px solid rgba(0,0,0,0.05)', cursor: 'pointer',
-    userSelect: 'none', transition: 'all 0.2s', height: '40px'
-  }} onClick={onToggle}>
-    <span style={{ fontSize: '11px', fontWeight: '800', color: '#8A929C', letterSpacing: '0.05em' }}>{label}</span>
-    <div style={{
-      width: '36px', height: '20px', background: active ? '#E8A2A2' : '#D1D5DB',
-      borderRadius: '20px', position: 'relative', transition: 'background 0.3s'
-    }}>
-      <motion.div
-        animate={{ x: active ? 18 : 2 }}
-        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-        style={{
-          width: '16px', height: '16px', background: 'white',
-          borderRadius: '50%', position: 'absolute', top: '2px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-        }}
-      />
-    </div>
-  </div>
-);
-
-const WaveformPill = ({ active, isSpeaking, isAudioEnabled, onToggleAudio }) => (
-  <div style={{
-    display: 'flex', alignItems: 'center', gap: '10px',
-    padding: '8px 20px', background: '#E3F2FD', borderRadius: '30px',
-    border: '1px solid rgba(30,136,229,0.1)', cursor: 'pointer',
-    minWidth: '160px', height: '40px'
-  }}>
-    <div onClick={(e) => { e.stopPropagation(); onToggleAudio(); }} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-      {isAudioEnabled ? <Volume2 size={18} color="#42A5F5" /> : <VolumeX size={18} color="#90CAF9" />}
-    </div>
-    <div style={{ display: 'flex', gap: '2px', alignItems: 'center', height: '20px' }}>
-      {[...Array(15)].map((_, i) => (
-        <motion.div
-          key={i}
-          animate={(active || isSpeaking) && isAudioEnabled ? {
-            height: [6, 18, 10, 22, 6][i % 5],
-            opacity: [0.6, 1, 0.6]
-          } : { height: 3, opacity: 0.2 }}
-          transition={{
-            repeat: (active || isSpeaking) && isAudioEnabled ? Infinity : 0,
-            duration: 0.7,
-            delay: i * 0.05,
-            ease: "easeInOut"
-          }}
-          style={{ width: '2px', background: '#42A5F5', borderRadius: '2px' }}
-        />
-      ))}
-    </div>
-  </div>
-);
+const quickTopics = [
+  { label: 'Mathematics', color: 'bg-periwinkle/25' },
+  { label: 'Physics', color: 'bg-seafoam/25' },
+  { label: 'Chemistry', color: 'bg-lemon/25' },
+  { label: 'Biology', color: 'bg-mint/25' },
+  { label: 'History', color: 'bg-peach/25' },
+  { label: 'Literature', color: 'bg-lilac/25' },
+];
 
 export default function AIChat() {
   const { 
@@ -78,9 +32,7 @@ export default function AIChat() {
   const [isRecording, setIsRecording] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
-  const [isEL15, setIsEL15] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('groq'); // 'groq' or 'gemini'
   
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -88,13 +40,11 @@ export default function AIChat() {
 
   useEffect(() => {
     loadChatHistory();
-    // Initialize Speech Recognition
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
-      
       recognitionRef.current.onresult = (event) => {
         let finalTranscript = '';
         for (let i = event.resultIndex; i < event.results.length; ++i) {
@@ -106,15 +56,12 @@ export default function AIChat() {
           setInputText(prev => (prev + ' ' + finalTranscript).trim());
         }
       };
-
       recognitionRef.current.onend = () => {
         if (isRecording) {
-           try { recognitionRef.current.start(); } catch(e) {}
+          try { recognitionRef.current.start(); } catch(e) {}
         }
       };
-
       recognitionRef.current.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
         if (event.error !== 'no-speech') setIsRecording(false);
       };
     }
@@ -161,344 +108,226 @@ export default function AIChat() {
     if (!msg || isChatLoading) return;
 
     if (!activeChatSessionId) {
-      const newId = await createChatSession(msg.slice(0, 30));
-    }
-
-    if (isEL15) {
-      msg = `Explain the following to me like I'm 15 years old, using simple analogies and avoiding jargon where possible. Keep it engaging: ${msg}`;
+      await createChatSession(msg.slice(0, 30));
     }
 
     setInputText('');
-    const userMsg = { role: 'user', text: isEL15 ? inputText.trim() : msg, timestamp: Date.now() };
+    const userMsg = { role: 'user', text: msg, timestamp: Date.now() };
     const updatedMsgs = [...useStudyStore.getState().chatMessages, userMsg];
     
-    // 1. Sync state immediately
     await addChatMessage(userMsg);
-    
     setChatLoading(true);
     setStreamingMsg('');
 
     try {
-      // 2. Pass the fresh const to the API, not the stale state
       const finalReply = await sendChatMessage(
-        isEL15 ? inputText.trim() : msg, 
-        updatedMsgs.slice(0, -1), // History is everything BEFORE the new message
+        msg, 
+        updatedMsgs.slice(0, -1),
         (token) => setStreamingMsg(token)
       );
 
-      // 4. Store the AI response
       const aiResponse = { role: 'ai', text: finalReply, timestamp: Date.now() };
       await addChatMessage(aiResponse);
       
       setStreamingMsg('');
       if (isAudioEnabled) speak(finalReply);
     } catch (err) {
-      console.error('Chat error:', err);
       const errorMsg = err?.message || '❌ Service error. Please try again.';
       await addChatMessage({ role: 'ai', text: errorMsg, timestamp: Date.now() });
     } finally {
-      // 3. Guaranteed loading reset
       setChatLoading(false);
     }
   };
 
+  const handleQuickTopic = (topic) => {
+    setInputText(`Explain ${topic} in simple terms`);
+    textareaRef.current?.focus();
+  };
+
   return (
-    <div style={{ height: '100vh', display: 'flex', background: 'var(--v-bg)' }}>
-      <aside style={{
-        width: '260px',
-        borderRight: '0.5px solid rgba(0,0,0,0.1)',
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'rgba(0,0,0,0.02)',
-        padding: '16px 12px',
-        height: '100vh',
-        overflowY: 'auto'
-      }}>
-        <button 
-          onClick={() => createChatSession()}
-          style={{
-            width: '100%',
-            padding: '10px',
-            borderRadius: '10px',
-            background: 'white',
-            border: '1px solid rgba(0,0,0,0.1)',
-            fontSize: '13px',
-            fontWeight: '600',
-            color: 'var(--v-primary)',
-            cursor: 'pointer',
-            marginBottom: '20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px'
-          }}
-        >
-          <Plus size={16} /> New Chat
-        </button>
-
-        <div style={{ flex: 1 }}>
-          <p style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--gray-400)', textTransform: 'uppercase', marginBottom: '12px', paddingLeft: '8px' }}>Recents</p>
-          {chatSessions.map(session => (
-            <button
-              key={session.id}
-              onClick={() => switchChatSession(session.id)}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                background: activeChatSessionId === session.id ? 'var(--v-accent)' : 'transparent',
-                border: 'none',
-                textAlign: 'left',
-                fontSize: '13px',
-                color: activeChatSessionId === session.id ? 'var(--v-primary)' : 'var(--v-text)',
-                cursor: 'pointer',
-                marginBottom: '4px',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                transition: 'all 0.15s'
-              }}
-            >
-              {session.title || 'Untitled Chat'}
-            </button>
-          ))}
-        </div>
-      </aside>
-
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
-        <header style={{
-          height: '60px', padding: '0 24px',
-          borderBottom: '0.5px solid rgba(0,0,0,0.1)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: 'var(--v-bg)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+    <div className="flex h-[calc(100vh-64px)] -m-4 sm:-m-8">
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col min-w-0" style={{ flex: '0 0 70%' }}>
+        {/* Chat Header */}
+        <GlassCard interactive={false} className="rounded-none border-x-0 border-t-0 flex items-center justify-between p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-seafoam to-mint flex items-center justify-center animate-pulse-soft">
+              <Bot size={20} className="text-white" />
+            </div>
             <div>
-              <h1 style={{ fontSize: '15px', fontWeight: '600', color: 'var(--v-primary)', fontFamily: 'Outfit' }}>AI Study Chat</h1>
-              <p style={{ fontSize: '11px', color: 'var(--gray-400)', letterSpacing: '.05em', fontWeight: 'bold', textTransform: 'uppercase' }}>Premium research studio</p>
-            </div>
-            
-            <div style={{
-              display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.05)', borderRadius: '10px', padding: '3px', gap: '2px'
-            }}>
-              <button 
-                onClick={() => setSelectedModel('groq')}
-                style={{
-                  padding: '5px 12px', fontSize: '11px', borderRadius: '7px', cursor: 'pointer', border: 'none',
-                  background: selectedModel === 'groq' ? 'white' : 'transparent',
-                  color: selectedModel === 'groq' ? 'var(--v-primary)' : 'var(--gray-400)',
-                  fontWeight: '600', boxShadow: selectedModel === 'groq' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-                }}
-              >
-                Groq 3.1
-              </button>
-              <button 
-                onClick={() => setSelectedModel('gemini')}
-                style={{
-                  padding: '5px 12px', fontSize: '11px', borderRadius: '7px', cursor: 'pointer', border: 'none',
-                  background: selectedModel === 'gemini' ? 'white' : 'transparent',
-                  color: selectedModel === 'gemini' ? 'var(--v-primary)' : 'var(--gray-400)',
-                  fontWeight: '600', boxShadow: selectedModel === 'gemini' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-                }}
-              >
-                Gemini 1.5
-              </button>
+              <h1 className="font-display font-bold text-[1.1rem] text-primary">AI Study Assistant</h1>
+              <p className="font-body text-muted text-[0.75rem]">Powered by Groq AI • Llama 3</p>
             </div>
           </div>
-
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <PillToggle label="EL15 MODE" active={isEL15} onToggle={() => setIsEL15(!isEL15)} />
-            <WaveformPill 
-              active={isRecording} 
-              isSpeaking={isSpeaking} 
-              isAudioEnabled={isAudioEnabled} 
-              onToggleAudio={() => setIsAudioEnabled(!isAudioEnabled)} 
-            />
+          <div className="flex items-center gap-2">
             <button 
-              onClick={clearChat}
-              style={{
-                width: '40px', height: '40px', borderRadius: '50%', border: 'none',
-                background: '#F0F2F5', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', color: '#8A929C'
-              }}
+              onClick={() => createChatSession()} 
+              className="px-4 py-2 rounded-pill border-[1.5px] border-taupe text-secondary font-body font-medium text-sm hover:bg-[rgba(0,0,0,0.03)] transition-colors"
             >
-              <Trash2 size={18} />
+              New Chat
             </button>
           </div>
-        </header>
+        </GlassCard>
 
-        <main style={{ flex: 1, overflowY: 'auto', padding: '24px 0' }}>
-          <div style={{ maxWidth: '760px', margin: '0 auto', padding: '0 24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {chatMessages.length === 0 ? (
-               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', opacity: 0.5 }}>
-                  <MessageCircle size={48} strokeWidth={1} style={{ marginBottom: '16px' }} />
-                  <p style={{ fontSize: '14px', fontWeight: '600' }}>Select a chat or start teaching {selectedModel === 'gemini' ? 'Gemini' : 'Groq'}.</p>
-               </div>
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-6 chat-scroll">
+          <div className="max-w-[760px] mx-auto flex flex-col gap-5">
+            {chatMessages.length === 0 && !streamingMsg && !isChatLoading ? (
+              <div className="flex flex-col items-center justify-center h-[50vh] text-center">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-lavender to-periwinkle flex items-center justify-center mb-4">
+                  <Bot size={36} className="text-white" />
+                </div>
+                <h2 className="font-display font-bold text-xl text-primary mb-2">Ask anything</h2>
+                <p className="font-body text-secondary text-sm max-w-sm">Start a conversation with your AI study assistant. Ask questions, get explanations, and learn faster.</p>
+              </div>
             ) : (
               chatMessages.map((msg, i) => (
-                <div key={i} style={{
-                  display: 'flex',
-                  flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
-                  alignItems: 'flex-start',
-                  gap: '10px',
-                }}>
-                  {msg.role === 'ai' && (
-                    <div style={{
-                      width: '30px', height: '30px', borderRadius: '50%', background: 'var(--v-primary)',
-                      flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '12px', fontWeight: '600', color: 'white'
-                    }}>{selectedModel === 'gemini' ? 'G' : 'E'}</div>
-                  )}
-
-                  <div style={{
-                    maxWidth: msg.role === 'user' ? '70%' : '85%',
-                    padding: '10px 14px',
-                    borderRadius: msg.role === 'user' ? '18px 18px 4px 18px' : '4px 18px 18px 18px',
-                    background: msg.role === 'user' ? 'var(--v-accent)' : 'white',
-                    color: 'var(--v-text)',
-                    border: '0.5px solid rgba(0,0,0,0.05)',
-                    fontSize: '14px', lineHeight: '1.65',
-                    position: 'relative'
-                  }} className="group">
-                    {msg.role === 'ai' ? (
+                <motion.div 
+                  key={i}
+                  initial={{ opacity: 0, x: msg.role === 'user' ? 20 : -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  {msg.role === 'user' ? (
+                    /* User Bubble */
+                    <div className="max-w-[70%] px-[18px] py-3 rounded-[20px_20px_6px_20px] bg-gradient-to-br from-periwinkle to-lavender text-primary shadow-[0_4px_16px_rgba(178,204,255,0.30)] font-body text-[0.95rem] leading-relaxed">
+                      {msg.text}
+                    </div>
+                  ) : (
+                    /* AI Bubble */
+                    <div className="max-w-[75%] px-[18px] py-[14px] rounded-[20px_20px_20px_6px] bg-[rgba(255,255,255,0.80)] backdrop-blur-[16px] border-[1.5px] border-[rgba(168,255,236,0.35)] shadow-sm font-body text-[0.95rem] leading-relaxed group relative">
                       <div className="ai-content">
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm]}
                           components={{
-                            h1: ({children}) => <h1 style={{fontSize:'17px',fontWeight:'500',marginBottom:'8px',color:'var(--v-text)',borderBottom:'1px solid var(--v-accent)',paddingBottom:'6px'}}>{children}</h1>,
-                            h2: ({children}) => <h2 style={{fontSize:'15px',fontWeight:'500',marginBottom:'6px',color:'var(--v-text)'}}>{children}</h2>,
-                            h3: ({children}) => <h3 style={{fontSize:'14px',fontWeight:'500',marginBottom:'5px',color:'var(--v-text)'}}>{children}</h3>,
-                            p:  ({children}) => <p style={{marginBottom:'10px',lineHeight:'1.7',fontSize:'14px'}}>{children}</p>,
-                            ul: ({children}) => <ul style={{paddingLeft:'18px',marginBottom:'10px',display:'flex',flexDirection:'column',gap:'4px'}}>{children}</ul>,
-                            ol: ({children}) => <ol style={{paddingLeft:'18px',marginBottom:'10px',display:'flex',flexDirection:'column',gap:'4px'}}>{children}</ol>,
-                            li: ({children}) => <li style={{fontSize:'14px',lineHeight:'1.65',listStyleType:'disc',color:'inherit'}}>{children}</li>,
-                            strong: ({children}) => <strong style={{fontWeight:'500',color:'var(--v-primary)'}}>{children}</strong>,
-                            code: ({inline,children}) => inline
-                              ? <code style={{fontFamily:'monospace',fontSize:'12px',background:'var(--v-surface)',color:'var(--v-text)',padding:'1px 5px',borderRadius:'4px'}}>{children}</code>
-                              : <pre style={{background:'var(--v-bg)',border:'0.5px solid rgba(0,0,0,0.1)',borderRadius:'8px',padding:'12px 14px',overflowX:'auto',marginBottom:'12px'}}><code style={{fontFamily:'monospace',fontSize:'12.5px'}}>{children}</code></pre>,
-                            hr: () => <hr style={{border:'none',borderTop:'0.5px solid rgba(0,0,0,0.1)',margin:'12px 0'}}/>,
+                            h1: ({children}) => <h1 className="font-display font-bold text-[1.1rem] text-primary mb-2 border-b border-taupe/20 pb-1">{children}</h1>,
+                            h2: ({children}) => <h2 className="font-display font-bold text-base text-primary mb-1.5">{children}</h2>,
+                            h3: ({children}) => <h3 className="font-body font-semibold text-sm text-slate mb-1">{children}</h3>,
+                            p: ({children}) => <p className="mb-2.5 leading-[1.7] text-sm">{children}</p>,
+                            ul: ({children}) => <ul className="pl-4 mb-2.5 flex flex-col gap-1">{children}</ul>,
+                            ol: ({children}) => <ol className="pl-4 mb-2.5 flex flex-col gap-1 list-decimal">{children}</ol>,
+                            li: ({children}) => <li className="text-sm leading-relaxed list-disc">{children}</li>,
+                            strong: ({children}) => <strong className="font-semibold text-primary bg-lemon/40 px-0.5">{children}</strong>,
+                            code: ({inline, children}) => inline
+                              ? <code className="font-mono text-xs bg-seafoam/20 text-primary px-1.5 py-0.5 rounded">{children}</code>
+                              : <pre className="bg-seafoam/10 border-l-[3px] border-seafoam rounded-lg p-3 overflow-x-auto mb-3"><code className="font-mono text-xs">{children}</code></pre>,
+                            blockquote: ({children}) => <blockquote className="border-l-[3px] border-periwinkle bg-periwinkle/10 p-3 mb-3 italic rounded-r-lg">{children}</blockquote>,
                           }}
                         >
                           {msg.text}
                         </ReactMarkdown>
                       </div>
-                    ) : (
-                      msg.text
-                    )}
-
-                    {msg.role === 'ai' && (
-                      <div style={{
-                        position: 'absolute', top: 0, left: '100%', marginLeft: '8px',
-                        display: 'flex', gap: '4px', opacity: 0, transition: 'opacity 0.2s'
-                      }} className="group-hover:opacity-100">
-                        <button onClick={() => speak(msg.text)} style={{background:'white',border:'0.5px solid rgba(0,0,0,0.1)',borderRadius:'8px',padding:'4px',cursor:'pointer'}}>
-                          <Volume2 size={14} />
+                      {/* Hover actions */}
+                      <div className="absolute -top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <button onClick={() => speak(msg.text)} className="w-7 h-7 rounded-lg bg-white shadow-sm border border-pearl/50 flex items-center justify-center hover:bg-lavender/10 transition-colors">
+                          <Volume2 size={12} className="text-slate" />
                         </button>
-                        <button onClick={() => toggleBookmarkMessage(chatMessages.indexOf(msg))} style={{background:'white',border:'0.5px solid rgba(0,0,0,0.1)',borderRadius:'8px',padding:'4px',cursor:'pointer'}}>
-                          <Star size={14} className={msg.isBookmarked ? 'fill-current text-amber-500' : ''} />
+                        <button onClick={() => toggleBookmarkMessage(i)} className="w-7 h-7 rounded-lg bg-white shadow-sm border border-pearl/50 flex items-center justify-center hover:bg-lemon/30 transition-colors">
+                          <Star size={12} className={msg.isBookmarked ? 'fill-lemon text-sand' : 'text-slate'} />
                         </button>
-                        <button onClick={() => handleCopy(msg.text, i)} style={{background:'white',border:'0.5px solid rgba(0,0,0,0.1)',borderRadius:'8px',padding:'4px',cursor:'pointer'}}>
-                          {copiedIndex === i ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                        <button onClick={() => handleCopy(msg.text, i)} className="w-7 h-7 rounded-lg bg-white shadow-sm border border-pearl/50 flex items-center justify-center hover:bg-mint/20 transition-colors">
+                          {copiedIndex === i ? <Check size={12} className="text-mint" /> : <Copy size={12} className="text-slate" />}
                         </button>
                       </div>
-                    )}
-                  </div>
-                </div>
+                    </div>
+                  )}
+                </motion.div>
               ))
             )}
 
-            {isChatLoading && (
-               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                 <div style={{
-                   width: '30px', height: '30px', borderRadius: '50%', background: 'rgba(0,0,0,0.05)',
-                   flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'
-                 }}>
-                   <div className="w-4 h-4 rounded-full border-2 border-v-primary border-t-transparent animate-spin" />
-                 </div>
-                 <div style={{
-                   padding: '12px 18px', borderRadius: '4px 18px 18px 18px',
-                   background: 'white', color: 'var(--gray-400)', border: '0.5px solid rgba(0,0,0,0.05)',
-                   fontSize: '13px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px'
-                 }}>
-                   Thinking...
-                   <span className="flex gap-1">
-                     <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1 }}>.</motion.span>
-                     <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }}>.</motion.span>
-                     <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }}>.</motion.span>
-                   </span>
-                 </div>
-               </div>
+            {/* Typing Indicator */}
+            {isChatLoading && !streamingMsg && (
+              <div className="flex items-start gap-3">
+                <GlassCard interactive={false} className="px-5 py-3 rounded-[20px_20px_20px_6px] border-[1.5px] border-[rgba(168,255,236,0.35)]">
+                  <div className="flex gap-1.5 items-center">
+                    <motion.div animate={{ scale: [0.6, 1, 0.6] }} transition={{ repeat: Infinity, duration: 1.4, delay: 0 }} className="w-2 h-2 rounded-full bg-lavender" />
+                    <motion.div animate={{ scale: [0.6, 1, 0.6] }} transition={{ repeat: Infinity, duration: 1.4, delay: 0.2 }} className="w-2 h-2 rounded-full bg-lavender" />
+                    <motion.div animate={{ scale: [0.6, 1, 0.6] }} transition={{ repeat: Infinity, duration: 1.4, delay: 0.4 }} className="w-2 h-2 rounded-full bg-lavender" />
+                  </div>
+                </GlassCard>
+              </div>
             )}
 
+            {/* Streaming message */}
             {streamingMsg && (
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                <div style={{
-                  width: '30px', height: '30px', borderRadius: '50%', background: 'var(--v-primary)',
-                  flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '12px', fontWeight: '600', color: 'white'
-                }}>{selectedModel === 'gemini' ? 'G' : 'E'}</div>
-                <div style={{
-                  maxWidth: '85%', padding: '10px 14px', borderRadius: '4px 18px 18px 18px',
-                  background: 'white', color: 'var(--v-text)', border: '0.5px solid rgba(0,0,0,0.05)',
-                  fontSize: '14px', lineHeight: '1.65'
-                }}>
+              <div className="flex justify-start">
+                <div className="max-w-[75%] px-[18px] py-[14px] rounded-[20px_20px_20px_6px] bg-[rgba(255,255,255,0.80)] backdrop-blur-[16px] border-[1.5px] border-[rgba(168,255,236,0.35)] shadow-sm font-body text-sm leading-relaxed">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingMsg}</ReactMarkdown>
-                  <span className="animate-blink" style={{ fontWeight: '300', marginLeft: '2px' }}>▋</span>
+                  <span className="inline-block w-2 h-4 bg-lavender ml-0.5 animate-pulse rounded-sm"></span>
                 </div>
               </div>
             )}
             <div ref={messagesEndRef} />
           </div>
-        </main>
-
-        <div style={{
-          padding: '10px 12px 10px 16px',
-          background: 'white', border: '1px solid rgba(0,0,0,0.1)',
-          borderRadius: '16px', display: 'flex', alignItems: 'flex-end', gap: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-          maxWidth: '760px', margin: '0 auto 20px auto', width: 'calc(100% - 48px)'
-        }}>
-          <button onClick={() => {}} title="Attach file" style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px' }}>
-            <Plus size={18} strokeWidth={1.75} color="var(--gray-400)" />
-          </button>
-
-          <textarea
-            ref={textareaRef}
-            rows={1} 
-            placeholder="Ask anything about your studies..."
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onInput={autoResize}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }}}
-            style={{ flex: 1, resize: 'none', border: 'none', background: 'transparent',
-              fontSize: '14px', lineHeight: '1.6', maxHeight: '120px', outline: 'none',
-              padding: '4px 0' }}
-          />
-
-
-          <button 
-            onClick={() => setIsRecording(!isRecording)}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px',
-              color: isRecording ? 'var(--v-primary)' : 'var(--gray-400)' }}
-          >
-            <Mic size={18} strokeWidth={1.75}/>
-          </button>
-
-          <button 
-            onClick={sendMessage} 
-            disabled={!inputText.trim() || isChatLoading}
-            style={{
-              padding: '7px 14px', borderRadius: '10px', fontSize: '13px',
-              background: inputText.trim() ? 'var(--v-primary)' : 'rgba(0,0,0,0.05)',
-              color: inputText.trim() ? 'white' : 'var(--gray-400)',
-              transition: 'all .15s', border: 'none', 
-              cursor: inputText.trim() ? 'pointer' : 'default',
-              fontWeight: '600'
-            }}
-          >
-            Send
-          </button>
         </div>
+
+        {/* Input Bar */}
+        <div className="px-6 pb-4">
+          <div className="max-w-[760px] mx-auto bg-[rgba(255,255,255,0.90)] backdrop-blur-[12px] border-[1.5px] border-[rgba(208,170,255,0.30)] rounded-pill px-5 py-3 flex items-end gap-3 shadow-sm">
+            <button className="text-muted hover:text-secondary transition-colors pb-0.5">
+              <Paperclip size={20} />
+            </button>
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              placeholder="Ask your doubt..."
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onInput={autoResize}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }}}
+              className="flex-1 resize-none border-none bg-transparent font-body text-base text-primary placeholder:text-muted outline-none max-h-[120px] leading-relaxed"
+            />
+            <button 
+              onClick={() => setIsRecording(!isRecording)}
+              className={`pb-0.5 transition-colors ${isRecording ? 'text-coral' : 'text-muted hover:text-secondary'}`}
+            >
+              <Mic size={20} />
+            </button>
+            <button 
+              onClick={sendMessage}
+              disabled={!inputText.trim() || isChatLoading}
+              className="w-10 h-10 rounded-full bg-gradient-to-br from-periwinkle to-lavender flex items-center justify-center text-white shadow-[0_4px_16px_rgba(178,204,255,0.45)] hover:scale-110 active:scale-95 transition-all disabled:opacity-40 disabled:hover:scale-100 shrink-0"
+            >
+              <Send size={18} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Context Panel */}
+      <div className="hidden lg:flex flex-col w-[30%] bg-[rgba(242,240,255,0.5)] backdrop-blur-[12px] border-l border-[rgba(208,170,255,0.20)] p-6 overflow-y-auto">
+        <h3 className="font-display font-bold text-base text-primary mb-4">Quick Topics</h3>
+        <div className="grid grid-cols-2 gap-2 mb-8">
+          {quickTopics.map((topic, i) => (
+            <button 
+              key={i}
+              onClick={() => handleQuickTopic(topic.label)}
+              className={`${topic.color} border border-[rgba(255,255,255,0.5)] rounded-card px-3 py-3 text-sm font-body font-medium text-primary hover:shadow-md hover:-translate-y-0.5 transition-all text-left`}
+            >
+              {topic.label}
+            </button>
+          ))}
+        </div>
+
+        <h3 className="font-display font-bold text-base text-primary mb-3">Recent Chats</h3>
+        <div className="space-y-2 flex-1">
+          {chatSessions.slice(0, 5).map(session => (
+            <button
+              key={session.id}
+              onClick={() => switchChatSession(session.id)}
+              className={`w-full text-left px-4 py-3 rounded-[12px] font-body text-sm transition-all truncate ${
+                activeChatSessionId === session.id 
+                  ? 'bg-gradient-to-r from-lavender/30 to-periwinkle/30 text-primary font-semibold' 
+                  : 'text-secondary hover:bg-[rgba(208,170,255,0.1)]'
+              }`}
+            >
+              {session.title || 'Untitled Chat'}
+            </button>
+          ))}
+        </div>
+
+        <p className="font-body text-muted text-[0.7rem] mt-4 text-center">Groq AI responds in ~1s</p>
       </div>
     </div>
   );
