@@ -5,11 +5,10 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { 
   Send, Trash2, Plus, Mic, Check, Copy, Star,
-  Volume2, VolumeX, Paperclip, Bot
+  Volume2, VolumeX, Paperclip, Bot, FileText, X
 } from 'lucide-react';
-import { sendChatMessage } from '../services/ai';
+import { sendChatMessage, sendChatWithDocument } from '../services/ai';
 import GlassCard from '../components/ui/GlassCard';
-import Pill from '../components/ui/Pill';
 
 const quickTopics = [
   { label: 'Mathematics', color: 'bg-periwinkle/25' },
@@ -33,6 +32,9 @@ export default function AIChat() {
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  
+  const [attachedFile, setAttachedFile] = useState(null);
+  const [attachedFileText, setAttachedFileText] = useState('');
   
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -102,17 +104,41 @@ export default function AIChat() {
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setAttachedFile(file);
+    
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setAttachedFileText(ev.target.result);
+    };
+    reader.readAsText(file);
+    e.target.value = null; // Reset input
+  };
+
+  const clearAttachedFile = () => {
+    setAttachedFile(null);
+    setAttachedFileText('');
+  };
+
+  const handleClearChat = () => {
+    clearChat();
+    clearAttachedFile();
+  };
+
   const sendMessage = async (e) => {
     if (e) e.preventDefault();
     let msg = inputText.trim();
-    if (!msg || isChatLoading) return;
+    if ((!msg && !attachedFileText) || isChatLoading) return;
 
     if (!activeChatSessionId) {
-      await createChatSession(msg.slice(0, 30));
+      await createChatSession(msg.slice(0, 30) || 'Document Chat');
     }
 
     setInputText('');
-    const userMsg = { role: 'user', text: msg, timestamp: Date.now() };
+    const userMsgText = attachedFile ? `[Attached File: ${attachedFile.name}]\n${msg}` : msg;
+    const userMsg = { role: 'user', text: userMsgText, timestamp: Date.now() };
     const updatedMsgs = [...useStudyStore.getState().chatMessages, userMsg];
     
     await addChatMessage(userMsg);
@@ -120,11 +146,21 @@ export default function AIChat() {
     setStreamingMsg('');
 
     try {
-      const finalReply = await sendChatMessage(
-        msg, 
-        updatedMsgs.slice(0, -1),
-        (token) => setStreamingMsg(token)
-      );
+      let finalReply;
+      if (attachedFileText) {
+        finalReply = await sendChatWithDocument(
+          msg || 'Please summarize or analyze this document.',
+          attachedFileText,
+          updatedMsgs.slice(0, -1),
+          (token) => setStreamingMsg(token)
+        );
+      } else {
+        finalReply = await sendChatMessage(
+          msg, 
+          updatedMsgs.slice(0, -1),
+          (token) => setStreamingMsg(token)
+        );
+      }
 
       const aiResponse = { role: 'ai', text: finalReply, timestamp: Date.now() };
       await addChatMessage(aiResponse);
@@ -136,6 +172,7 @@ export default function AIChat() {
       await addChatMessage({ role: 'ai', text: errorMsg, timestamp: Date.now() });
     } finally {
       setChatLoading(false);
+      clearAttachedFile();
     }
   };
 
@@ -161,8 +198,22 @@ export default function AIChat() {
           </div>
           <div className="flex items-center gap-2">
             <button 
+              onClick={() => setIsAudioEnabled(!isAudioEnabled)} 
+              className={`p-2 rounded-lg transition-colors ${isAudioEnabled ? 'bg-[rgba(208,170,255,0.15)] text-lavender' : 'text-muted hover:bg-[rgba(204,204,204,0.1)] hover:text-secondary'}`}
+              title={isAudioEnabled ? "Disable Auto Text-to-Speech" : "Enable Auto Text-to-Speech"}
+            >
+              {isAudioEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
+            </button>
+            <button 
+              onClick={handleClearChat} 
+              className="p-2 rounded-lg text-muted hover:bg-[rgba(255,176,176,0.15)] hover:text-rose transition-colors"
+              title="Clear Chat"
+            >
+              <Trash2 size={20} />
+            </button>
+            <button 
               onClick={() => createChatSession()} 
-              className="px-4 py-2 rounded-pill border-[1.5px] border-taupe text-secondary font-body font-medium text-sm hover:bg-[rgba(0,0,0,0.03)] transition-colors"
+              className="px-4 py-2 rounded-pill border-[1.5px] border-[rgba(204,204,204,0.5)] text-secondary font-body font-medium text-sm hover:bg-[rgba(204,204,204,0.15)] transition-colors"
             >
               New Chat
             </button>
@@ -170,11 +221,11 @@ export default function AIChat() {
         </GlassCard>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-6 chat-scroll">
+        <div className="flex-1 overflow-y-auto p-6 chat-scroll relative">
           <div className="max-w-[760px] mx-auto flex flex-col gap-5">
             {chatMessages.length === 0 && !streamingMsg && !isChatLoading ? (
               <div className="flex flex-col items-center justify-center h-[50vh] text-center">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-lavender to-periwinkle flex items-center justify-center mb-4">
+                <div className="w-20 h-20 rounded-[28px] bg-gradient-to-br from-lavender to-periwinkle flex items-center justify-center mb-4">
                   <Bot size={36} className="text-white" />
                 </div>
                 <h2 className="font-display font-bold text-xl text-primary mb-2">Ask anything</h2>
@@ -191,7 +242,7 @@ export default function AIChat() {
                 >
                   {msg.role === 'user' ? (
                     /* User Bubble */
-                    <div className="max-w-[70%] px-[18px] py-3 rounded-[20px_20px_6px_20px] bg-gradient-to-br from-periwinkle to-lavender text-primary shadow-[0_4px_16px_rgba(178,204,255,0.30)] font-body text-[0.95rem] leading-relaxed">
+                    <div className="max-w-[70%] px-[18px] py-3 rounded-[20px_20px_6px_20px] bg-gradient-to-br from-periwinkle to-lavender text-primary shadow-[0_4px_16px_rgba(178,204,255,0.30)] font-body text-[0.95rem] leading-relaxed whitespace-pre-wrap">
                       {msg.text}
                     </div>
                   ) : (
@@ -201,18 +252,18 @@ export default function AIChat() {
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm]}
                           components={{
-                            h1: ({children}) => <h1 className="font-display font-bold text-[1.1rem] text-primary mb-2 border-b border-taupe/20 pb-1">{children}</h1>,
+                            h1: ({children}) => <h1 className="font-display font-bold text-[1.1rem] text-primary mb-2 border-b border-[rgba(204,204,204,0.3)] pb-1">{children}</h1>,
                             h2: ({children}) => <h2 className="font-display font-bold text-base text-primary mb-1.5">{children}</h2>,
-                            h3: ({children}) => <h3 className="font-body font-semibold text-sm text-slate mb-1">{children}</h3>,
+                            h3: ({children}) => <h3 className="font-body font-semibold text-sm text-secondary mb-1">{children}</h3>,
                             p: ({children}) => <p className="mb-2.5 leading-[1.7] text-sm">{children}</p>,
                             ul: ({children}) => <ul className="pl-4 mb-2.5 flex flex-col gap-1">{children}</ul>,
                             ol: ({children}) => <ol className="pl-4 mb-2.5 flex flex-col gap-1 list-decimal">{children}</ol>,
                             li: ({children}) => <li className="text-sm leading-relaxed list-disc">{children}</li>,
-                            strong: ({children}) => <strong className="font-semibold text-primary bg-lemon/40 px-0.5">{children}</strong>,
+                            strong: ({children}) => <strong className="font-semibold text-primary bg-[rgba(245,245,168,0.4)] px-0.5">{children}</strong>,
                             code: ({inline, children}) => inline
-                              ? <code className="font-mono text-xs bg-seafoam/20 text-primary px-1.5 py-0.5 rounded">{children}</code>
-                              : <pre className="bg-seafoam/10 border-l-[3px] border-seafoam rounded-lg p-3 overflow-x-auto mb-3"><code className="font-mono text-xs">{children}</code></pre>,
-                            blockquote: ({children}) => <blockquote className="border-l-[3px] border-periwinkle bg-periwinkle/10 p-3 mb-3 italic rounded-r-lg">{children}</blockquote>,
+                              ? <code className="font-mono text-xs bg-[rgba(168,255,236,0.2)] text-primary px-1.5 py-0.5 rounded">{children}</code>
+                              : <pre className="bg-[rgba(168,255,236,0.1)] border-l-[3px] border-seafoam rounded-lg p-3 overflow-x-auto mb-3"><code className="font-mono text-xs">{children}</code></pre>,
+                            blockquote: ({children}) => <blockquote className="border-l-[3px] border-periwinkle bg-[rgba(208,170,255,0.1)] p-3 mb-3 italic rounded-r-lg">{children}</blockquote>,
                           }}
                         >
                           {msg.text}
@@ -220,14 +271,14 @@ export default function AIChat() {
                       </div>
                       {/* Hover actions */}
                       <div className="absolute -top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <button onClick={() => speak(msg.text)} className="w-7 h-7 rounded-lg bg-white shadow-sm border border-pearl/50 flex items-center justify-center hover:bg-lavender/10 transition-colors">
-                          <Volume2 size={12} className="text-slate" />
+                        <button onClick={() => { window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(msg.text); window.speechSynthesis.speak(utterance); }} className="w-7 h-7 rounded-lg bg-[rgba(255,255,255,0.9)] shadow-sm border border-[rgba(204,204,204,0.3)] flex items-center justify-center hover:bg-[rgba(208,170,255,0.15)] hover:text-lavender transition-colors">
+                          <Volume2 size={12} className="text-secondary" />
                         </button>
-                        <button onClick={() => toggleBookmarkMessage(i)} className="w-7 h-7 rounded-lg bg-white shadow-sm border border-pearl/50 flex items-center justify-center hover:bg-lemon/30 transition-colors">
-                          <Star size={12} className={msg.isBookmarked ? 'fill-lemon text-sand' : 'text-slate'} />
+                        <button onClick={() => toggleBookmarkMessage(i)} className="w-7 h-7 rounded-lg bg-[rgba(255,255,255,0.9)] shadow-sm border border-[rgba(204,204,204,0.3)] flex items-center justify-center hover:bg-[rgba(245,245,168,0.3)] transition-colors">
+                          <Star size={12} className={msg.isBookmarked ? 'fill-sand text-sand' : 'text-secondary'} />
                         </button>
-                        <button onClick={() => handleCopy(msg.text, i)} className="w-7 h-7 rounded-lg bg-white shadow-sm border border-pearl/50 flex items-center justify-center hover:bg-mint/20 transition-colors">
-                          {copiedIndex === i ? <Check size={12} className="text-mint" /> : <Copy size={12} className="text-slate" />}
+                        <button onClick={() => handleCopy(msg.text, i)} className="w-7 h-7 rounded-lg bg-[rgba(255,255,255,0.9)] shadow-sm border border-[rgba(204,204,204,0.3)] flex items-center justify-center hover:bg-[rgba(178,255,212,0.3)] transition-colors">
+                          {copiedIndex === i ? <Check size={12} className="text-mint" /> : <Copy size={12} className="text-secondary" />}
                         </button>
                       </div>
                     </div>
@@ -263,11 +314,27 @@ export default function AIChat() {
         </div>
 
         {/* Input Bar */}
-        <div className="px-6 pb-4">
+        <div className="px-6 pb-4 relative">
+          {/* File Attachment Indicator */}
+          {attachedFile && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              className="absolute bottom-full mb-2 left-10 bg-[rgba(255,255,255,0.95)] backdrop-blur-md border-[1.5px] border-[rgba(208,170,255,0.3)] px-3 py-1.5 rounded-card flex items-center gap-2 text-sm shadow-sm"
+            >
+              <FileText size={14} className="text-periwinkle" />
+              <span className="truncate max-w-[200px] font-body text-primary font-medium text-xs">{attachedFile.name}</span>
+              <button onClick={clearAttachedFile} className="p-1 rounded-md hover:bg-[rgba(255,176,176,0.2)] text-secondary hover:text-rose transition-colors">
+                <X size={12} />
+              </button>
+            </motion.div>
+          )}
+
           <div className="max-w-[760px] mx-auto bg-[rgba(255,255,255,0.90)] backdrop-blur-[12px] border-[1.5px] border-[rgba(208,170,255,0.30)] rounded-pill px-5 py-3 flex items-end gap-3 shadow-sm">
-            <button className="text-muted hover:text-secondary transition-colors pb-0.5">
+            <label className="cursor-pointer text-muted hover:text-secondary transition-colors pb-0.5 relative" title="Attach text file">
               <Paperclip size={20} />
-            </button>
+              <input type="file" accept=".txt,.md,.json,.csv" onChange={handleFileUpload} className="hidden" />
+              {attachedFile && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-periwinkle border-2 border-white rounded-full" />}
+            </label>
             <textarea
               ref={textareaRef}
               rows={1}
@@ -276,17 +343,18 @@ export default function AIChat() {
               onChange={(e) => setInputText(e.target.value)}
               onInput={autoResize}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }}}
-              className="flex-1 resize-none border-none bg-transparent font-body text-base text-primary placeholder:text-muted outline-none max-h-[120px] leading-relaxed"
+              className="flex-1 resize-none border-none bg-transparent font-body text-base text-primary placeholder:text-muted outline-none max-h-[120px] leading-relaxed py-0.5"
             />
             <button 
               onClick={() => setIsRecording(!isRecording)}
               className={`pb-0.5 transition-colors ${isRecording ? 'text-coral' : 'text-muted hover:text-secondary'}`}
+              title="Voice Input"
             >
               <Mic size={20} />
             </button>
             <button 
               onClick={sendMessage}
-              disabled={!inputText.trim() || isChatLoading}
+              disabled={(!inputText.trim() && !attachedFileText) || isChatLoading}
               className="w-10 h-10 rounded-full bg-gradient-to-br from-periwinkle to-lavender flex items-center justify-center text-white shadow-[0_4px_16px_rgba(178,204,255,0.45)] hover:scale-110 active:scale-95 transition-all disabled:opacity-40 disabled:hover:scale-100 shrink-0"
             >
               <Send size={18} />
@@ -318,8 +386,8 @@ export default function AIChat() {
               onClick={() => switchChatSession(session.id)}
               className={`w-full text-left px-4 py-3 rounded-[12px] font-body text-sm transition-all truncate ${
                 activeChatSessionId === session.id 
-                  ? 'bg-gradient-to-r from-lavender/30 to-periwinkle/30 text-primary font-semibold' 
-                  : 'text-secondary hover:bg-[rgba(208,170,255,0.1)]'
+                  ? 'bg-[rgba(208,170,255,0.15)] text-primary font-semibold' 
+                  : 'text-secondary hover:bg-[rgba(204,204,204,0.15)]'
               }`}
             >
               {session.title || 'Untitled Chat'}
