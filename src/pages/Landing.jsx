@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Menu, ArrowRight, Sparkles, Send, Brain, BookOpen, Download, BarChart2, Star, Github } from 'lucide-react';
+import { Menu, ArrowRight, Sparkles, Send, Brain, BookOpen, Download, BarChart2, Star, Code } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AnimatedBackground from '../components/layout/AnimatedBackground';
 
@@ -437,7 +437,7 @@ const Landing = () => {
           <div className="w-full md:w-1/3 space-y-4">
             <div className="font-brand text-[1.3rem] text-[#3A3C4A]">EduMesh</div>
             <p className="text-[0.9rem] text-[#BBBBCC]">Your AI study partner for college.</p>
-            <a href="https://github.com" className="inline-block mt-2 text-taupe hover:text-[#3A3C4A] transition-colors"><Github size={20} /></a>
+            <a href="https://github.com" className="inline-block mt-2 text-taupe hover:text-[#3A3C4A] transition-colors"><Code size={20} /></a>
           </div>
 
           <div className="w-full md:w-1/3 flex flex-col space-y-3">
