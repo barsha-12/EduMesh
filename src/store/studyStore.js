@@ -294,8 +294,17 @@ export const useStudyStore = create((set, get) => ({
   },
 
   getDueFlashcards: () => {
-    const today = new Date().toISOString().split('T')[0];
-    return get().flashcards.filter(f => f.next_review <= today);
+    const todayStr = new Date().toISOString().split('T')[0];
+    return get().flashcards.filter(f => {
+      if (!f.next_review) return true;
+      const reviewDate = f.next_review.split('T')[0];
+      return reviewDate <= todayStr;
+    });
+  },
+
+  clearAllFlashcards: async () => {
+    set({ flashcards: [] });
+    await dbProxy('flashcards', 'delete', null, {});
   },
 
   // ─── Exams (Panic Mode) ───────────────────────────────────

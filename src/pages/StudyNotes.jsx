@@ -4,8 +4,7 @@ import { useStudyStore } from '../store/studyStore';
 import { useToastStore } from '../store/toastStore';
 import { generateStudyNotes, generateFlashcards } from '../services/ai';
 import { FileText, Sparkles, Loader2, Trash2, ChevronDown, Clock, Download, Brain } from 'lucide-react';
-import { jsPDF } from 'jspdf';
-import { marked } from 'marked';
+import { exportNotesPDF } from '../services/pdf';
 import GlassCard from '../components/ui/GlassCard';
 import Button from '../components/ui/Button';
 import InputField from '../components/ui/InputField';
@@ -86,28 +85,13 @@ export default function StudyNotes() {
 
   const handleDownloadPDF = async () => {
     if (!generatedNotes) return;
-    const htmlContent = marked.parse(generatedNotes);
-    
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = `
-      <div style="font-family: 'Plus Jakarta Sans', Arial, sans-serif; color: #3A3C4A; padding: 40px; line-height: 1.75;">
-        <h1 style="font-family: 'Sora', sans-serif; color: #3A3C4A; margin-bottom: 5px; font-size: 24px;">EduMesh Study Notes</h1>
-        <p style="color: #6E7488; margin-bottom: 30px;">${subject} — ${topic}</p>
-        <hr style="border: none; border-top: 1px solid #CCCCCC; margin-bottom: 30px;" />
-        ${htmlContent}
-      </div>
-    `;
-    tempDiv.style.width = '800px';
-    document.body.appendChild(tempDiv);
-
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    await doc.html(tempDiv, {
-      callback: function (doc) {
-        doc.save(`${subject}_${topic.replace(/\s+/g, '_')}.pdf`);
-        document.body.removeChild(tempDiv);
-      },
-      x: 10, y: 10, width: 190, windowWidth: 800
-    });
+    try {
+      exportNotesPDF('EduMesh Study Notes', `${subject} - ${topic}`, generatedNotes);
+      addToast('PDF downloaded successfully!', 'success');
+    } catch (err) {
+      console.error('PDF export error:', err);
+      addToast('Failed to generate PDF.', 'error');
+    }
   };
 
   const renderMarkdown = (text) => {

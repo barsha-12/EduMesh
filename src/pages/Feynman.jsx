@@ -5,6 +5,9 @@ import { useToastStore } from '../store/toastStore';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/authStore';
 import { Send, GraduationCap, Sparkles, Trophy, AlertTriangle, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
+import GlassCard from '../components/ui/GlassCard';
+import Button from '../components/ui/Button';
+import InputField from '../components/ui/InputField';
 
 const SUBJECTS = [
   'Mathematics', 'Physics', 'Chemistry', 'Computer Science',
@@ -153,40 +156,40 @@ export default function Feynman() {
             {/* SETUP */}
             {phase === 'setup' && (
               <motion.div key="setup" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                <div className="m3-card !p-8 space-y-6 shadow-lg">
+                <GlassCard className="!p-8 space-y-6 shadow-sm">
                   <div className="flex items-center gap-4 mb-2">
-                    <div className="w-14 h-14 rounded-3xl bg-gradient-to-br from-[#E8A2A2] to-[#A0C2D2] flex items-center justify-center">
+                    <div className="w-14 h-14 rounded-3xl bg-gradient-to-br from-periwinkle to-lavender flex items-center justify-center shadow-sm">
                       <GraduationCap className="w-7 h-7 text-white" />
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold">How it works</h2>
-                      <p className="text-sm text-gray-400">The AI plays a confused student. You explain. It probes gaps in your knowledge.</p>
+                      <h2 className="text-xl font-bold font-display text-primary">How it works</h2>
+                      <p className="text-sm font-body text-secondary">The AI plays a confused student. You explain. It probes gaps in your knowledge.</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-widest text-gray-400 ml-1">Subject</label>
-                      <select value={subject} onChange={(e) => setSubject(e.target.value)} className="input-field">
+                      <label className="text-xs font-bold font-body text-secondary ml-1">SUBJECT</label>
+                      <select value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full bg-[rgba(255,255,255,0.80)] border-[1.5px] border-[rgba(204,204,204,0.50)] rounded-[14px] px-4 py-3 font-body text-base text-primary outline-none focus:border-lavender focus:shadow-[0_0_0_4px_rgba(208,170,255,0.20)]">
                         <option value="">Select subject...</option>
                         {SUBJECTS.map((s) => (<option key={s} value={s}>{s}</option>))}
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-widest text-gray-400 ml-1">Topic to Teach</label>
+                      <label className="text-xs font-bold font-body text-secondary ml-1">TOPIC TO TEACH</label>
                       <input
                         type="text" value={topic}
                         onChange={(e) => setTopic(e.target.value)}
                         placeholder="e.g. Photosynthesis"
-                        className="input-field" required
+                        className="w-full bg-[rgba(255,255,255,0.80)] border-[1.5px] border-[rgba(204,204,204,0.50)] rounded-[14px] px-4 py-3 font-body text-base text-primary outline-none focus:border-lavender focus:shadow-[0_0_0_4px_rgba(208,170,255,0.20)]" required
                       />
                     </div>
                   </div>
 
-                  <button onClick={startSession} disabled={!topic.trim()} className="btn-primary w-full py-4">
+                  <Button onClick={startSession} disabled={!topic.trim()} size="lg" className="w-full">
                     <GraduationCap size={20} /> Start Teaching Session
-                  </button>
-                </div>
+                  </Button>
+                </GlassCard>
               </motion.div>
             )}
 
@@ -205,14 +208,14 @@ export default function Feynman() {
                 </div>
 
                 {/* Chat area */}
-                <div className="m3-card !p-4 sm:!p-8 min-h-[300px] max-h-[500px] overflow-y-auto chat-scrollbar space-y-4">
+                <GlassCard className="!p-4 sm:!p-8 min-h-[300px] max-h-[500px] overflow-y-auto chat-scrollbar space-y-4">
                   {exchanges.map((msg, i) => (
                     <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                       className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[80%] p-4 rounded-3xl text-sm leading-relaxed ${
+                      <div className={`max-w-[80%] p-4 rounded-3xl text-sm leading-relaxed font-body ${
                         msg.role === 'user'
-                          ? 'bg-[#A0C2D2] text-white rounded-tr-sm'
-                          : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-white/5 rounded-tl-sm'
+                          ? 'bg-gradient-to-br from-periwinkle to-lavender text-primary rounded-tr-sm shadow-sm'
+                          : 'bg-white border border-pearl rounded-tl-sm text-primary shadow-sm'
                       }`}>
                         {msg.text}
                       </div>
@@ -230,28 +233,28 @@ export default function Feynman() {
                     </div>
                   )}
                   <div ref={messagesEnd} />
-                </div>
+                </GlassCard>
 
                 {/* Input */}
-                <form onSubmit={sendMessage} className="m3-card !p-2 flex gap-2 items-center shadow-xl">
+                <GlassCard className="!p-2 flex gap-2 items-center">
                   <input
                     type="text" value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="Explain the concept..."
-                    className="flex-1 bg-transparent border-none focus:ring-0 px-4 py-3 text-sm placeholder-gray-400 dark:text-white"
+                    className="flex-1 bg-transparent border-none focus:ring-0 px-4 py-3 font-body text-base text-primary placeholder-muted outline-none"
                     disabled={isLoading}
                   />
                   <button type="submit" disabled={!input.trim() || isLoading}
-                    className="w-12 h-12 rounded-2xl bg-[#A0C2D2] text-white flex items-center justify-center shadow-lg disabled:opacity-30">
+                    className="w-12 h-12 rounded-[20px] bg-gradient-to-br from-periwinkle to-lavender text-white flex items-center justify-center shadow-sm disabled:opacity-30">
                     <Send size={20} />
                   </button>
-                </form>
+                </GlassCard>
 
                 {exchangeCount >= 5 && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
-                    <button onClick={endSession} className="btn-primary px-8 py-4">
+                    <Button onClick={endSession} size="lg">
                       <Trophy size={20} /> End Session & Get Score
-                    </button>
+                    </Button>
                   </motion.div>
                 )}
               </motion.div>
@@ -259,54 +262,56 @@ export default function Feynman() {
 
             {/* SCORING */}
             {phase === 'scoring' && (
-              <motion.div key="scoring" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="m3-card text-center !py-20">
-                <div className="w-16 h-16 bg-gradient-to-br from-[#E8A2A2] to-[#A0C2D2] rounded-full animate-pulse mx-auto mb-4 flex items-center justify-center">
-                  <Sparkles className="w-8 h-8 text-white" />
-                </div>
-                <p className="text-gray-400 font-bold text-sm">Analyzing your teaching session...</p>
+              <motion.div key="scoring" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center !py-20">
+                <GlassCard className="text-center !py-20">
+                  <div className="w-16 h-16 bg-gradient-to-br from-periwinkle to-lavender rounded-full animate-pulse mx-auto mb-4 flex items-center justify-center">
+                    <Sparkles className="w-8 h-8 text-white" />
+                  </div>
+                  <p className="text-secondary font-body font-bold text-sm">Analyzing your teaching session...</p>
+                </GlassCard>
               </motion.div>
             )}
 
             {/* RESULTS */}
             {phase === 'results' && score && (
               <motion.div key="results" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="space-y-8">
-                <div className="m3-card text-center !p-12 shadow-2xl relative overflow-hidden">
-                  <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-[#E8A2A2] via-[#A0C2D2] to-v-primary" />
+                <GlassCard className="text-center !p-12 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-periwinkle via-lavender to-orchid" />
                   
                   <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.2 }}
-                    className={`w-32 h-32 rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-2xl rotate-6 ${
-                      score.feynman_score >= 70 ? 'bg-v-secondary' : score.feynman_score >= 40 ? 'bg-v-primary' : 'bg-v-primary'
+                    className={`w-32 h-32 rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-sm rotate-6 ${
+                      score.feynman_score >= 70 ? 'bg-mint' : score.feynman_score >= 40 ? 'bg-lemon' : 'bg-peach'
                     }`}>
-                    <span className="text-5xl font-black text-white -rotate-6">{animatedScore}</span>
+                    <span className="text-5xl font-black text-primary -rotate-6">{animatedScore}</span>
                   </motion.div>
 
-                  <h2 className="text-3xl font-bold mb-2">
+                  <h2 className="text-3xl font-display font-bold mb-2 text-primary">
                     {score.feynman_score >= 80 ? 'Excellent Teacher!' : score.feynman_score >= 60 ? 'Good Understanding' : 'Keep Studying'}
                   </h2>
-                  <p className="text-gray-400 mb-8">{score.feedback}</p>
+                  <p className="text-secondary font-body mb-8">{score.feedback}</p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto">
-                    <div className="bg-v-secondary/5 border border-v-secondary/10 rounded-3xl p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-v-secondary mb-2">Strong</p>
+                    <div className="bg-mint/10 border border-mint/20 rounded-3xl p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-mint mb-2">Strong</p>
                       <div className="flex flex-wrap gap-1.5">
                         {score.strong_concepts.map((c, i) => (
-                          <span key={i} className="text-xs bg-v-secondary/10 text-v-secondary dark:text-v-secondary px-2 py-1 rounded-lg font-medium">{c}</span>
+                          <span key={i} className="text-xs bg-white text-primary px-2 py-1 rounded-lg font-medium shadow-sm">{c}</span>
                         ))}
                       </div>
                     </div>
-                    <div className="bg-v-primary/5 border border-v-primary/10 rounded-3xl p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-v-primary mb-2">Needs Work</p>
+                    <div className="bg-peach/10 border border-peach/20 rounded-3xl p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-peach mb-2">Needs Work</p>
                       <div className="flex flex-wrap gap-1.5">
                         {score.weak_concepts.map((c, i) => (
-                          <span key={i} className="text-xs bg-v-primary/10 text-v-primary dark:text-v-primary px-2 py-1 rounded-lg font-medium">{c}</span>
+                          <span key={i} className="text-xs bg-white text-primary px-2 py-1 rounded-lg font-medium shadow-sm">{c}</span>
                         ))}
                       </div>
                     </div>
                   </div>
-                </div>
+                </GlassCard>
 
                 <div className="flex justify-center gap-4">
-                  <button onClick={resetSession} className="btn-primary px-8">Try Another Topic</button>
+                  <Button onClick={resetSession} size="lg">Try Another Topic</Button>
                 </div>
               </motion.div>
             )}

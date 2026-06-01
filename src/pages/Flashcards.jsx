@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStudyStore } from '../store/studyStore';
 import { useToastStore } from '../store/toastStore';
-import { CheckCircle, Clock, Layers } from 'lucide-react';
+import { CheckCircle, Clock, Layers, Trash2 } from 'lucide-react';
 import AnimatedBackground from '../components/layout/AnimatedBackground';
 import GlassCard from '../components/ui/GlassCard';
 
@@ -44,7 +44,7 @@ const ratingLabels = [
 ];
 
 export default function Flashcards() {
-  const { flashcards, loadFlashcards, getDueFlashcards, updateFlashcard } = useStudyStore();
+  const { flashcards, loadFlashcards, getDueFlashcards, updateFlashcard, clearAllFlashcards } = useStudyStore();
   const addToast = useToastStore((s) => s.addToast);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -90,9 +90,11 @@ export default function Flashcards() {
         <AnimatedBackground />
         <main className="max-w-4xl mx-auto px-6 py-8 sm:py-16 relative z-10">
           <div className="space-y-8">
-            <div className="space-y-1">
-              <h1 className="text-3xl font-display font-bold tracking-tight">Flashcards</h1>
-              <p className="text-sm font-body text-secondary">Spaced repetition for long-term memory.</p>
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <h1 className="text-3xl font-display font-bold tracking-tight">Flashcards</h1>
+                <p className="text-sm font-body text-secondary">Spaced repetition for long-term memory.</p>
+              </div>
             </div>
             <GlassCard interactive={false} className="text-center !py-24 shadow-sm border-dashed">
               <div className="w-20 h-20 rounded-full bg-lavender/30 flex items-center justify-center mx-auto mb-6">
@@ -113,9 +115,14 @@ export default function Flashcards() {
         <AnimatedBackground />
         <main className="max-w-4xl mx-auto px-6 py-8 sm:py-16 relative z-10">
           <div className="space-y-8">
-            <div className="space-y-1">
-              <h1 className="text-3xl font-display font-bold tracking-tight">Flashcards</h1>
-              <p className="text-sm font-body text-secondary">Spaced repetition for long-term memory.</p>
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <h1 className="text-3xl font-display font-bold tracking-tight">Flashcards</h1>
+                <p className="text-sm font-body text-secondary">Spaced repetition for long-term memory.</p>
+              </div>
+              <button onClick={() => { if(window.confirm('Clear all flashcards? This cannot be undone.')) clearAllFlashcards(); }} className="flex items-center gap-2 text-sm text-rose font-medium bg-rose/10 hover:bg-rose/20 px-4 py-2 rounded-full transition-colors">
+                <Trash2 size={16} /> Clear All
+              </button>
             </div>
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
@@ -163,9 +170,14 @@ export default function Flashcards() {
                 Card <span className="text-periwinkle font-bold">{currentIndex + 1}</span> of {dueCards.length} due · {reviewed} reviewed
               </p>
             </div>
-            <div className="flex items-center gap-2 text-sm font-medium text-muted bg-white/60 px-4 py-2 rounded-full border border-pearl shadow-sm">
-              <Clock size={16} className="text-periwinkle" />
-              <span>{flashcards.length} total cards</span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted bg-white/60 px-4 py-2 rounded-full border border-pearl shadow-sm">
+                <Clock size={16} className="text-periwinkle" />
+                <span>{flashcards.length} total cards</span>
+              </div>
+              <button onClick={() => { if(window.confirm('Clear all flashcards? This cannot be undone.')) clearAllFlashcards(); }} className="p-2 text-rose bg-rose/10 hover:bg-rose/20 rounded-full transition-colors" title="Clear All Flashcards">
+                <Trash2 size={16} />
+              </button>
             </div>
           </div>
 

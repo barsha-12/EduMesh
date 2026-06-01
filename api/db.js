@@ -1,6 +1,45 @@
 import getDb from './lib/db.js';
 import cookie from 'cookie';
 import jwt from 'jsonwebtoken';
+import { ObjectId } from 'mongodb';
+
+/**
+ * Safely convert an 'id' field to MongoDB '_id' (ObjectId).
+ * If the id is not a valid ObjectId hex string, keep it as-is for local/fallback IDs.
+ */
+function translateIdToObjectId(query) {
+  if (!query) return query;
+  const translated = { ...query };
+  
+  if (translated.id) {
+    try {
+      if (ObjectId.isValid(translated.id) && String(new ObjectId(translated.id)) === String(translated.id)) {
+        translated._id = new ObjectId(translated.id);
+      } else {
+        translated._id = translated.id; // fallback
+      }
+    } catch (e) { translated._id = translated.id; }
+    delete translated.id;
+  }
+  
+  if (translated._id && typeof translated._id === 'string') {
+    try {
+      if (ObjectId.isValid(translated._id) && String(new ObjectId(translated._id)) === String(translated._id)) {
+        translated._id = new ObjectId(translated._id);
+      }
+    } catch(e) {}
+  }
+  
+  if (translated.session_id && typeof translated.session_id === 'string') {
+    try {
+      if (ObjectId.isValid(translated.session_id) && String(new ObjectId(translated.session_id)) === String(translated.session_id)) {
+        translated.session_id = new ObjectId(translated.session_id);
+      }
+    } catch(e) {}
+  }
+
+  return translated;
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
@@ -23,8 +62,11 @@ export default async function handler(req, res) {
     const db = await getDb();
     const col = db.collection(collection);
     
+    // Translate client 'id' to MongoDB '_id' (ObjectId)
+    const translatedQuery = translateIdToObjectId(query);
+    
     // Security override: Force all queries to be scoped strictly to the authenticated user's ID
-    const secureQuery = query ? { ...query, user_id: userId } : { user_id: userId };
+    const secureQuery = translatedQuery ? { ...translatedQuery, user_id: userId } : { user_id: userId };
     
     let result;
     switch (action) {
