@@ -88,4 +88,4 @@ The app will launch at `http://localhost:3002`.
 ## 📄 License
 Designed & Built with ❤️ by the EduMesh Intelligence Team. All Rights Reserved.
 
-**Live Demo:** [edu-mesh.vercel.app](https://edu-mesh.vercel.app/)
+**Live Demo:** [edu-mesh.vercel.app](https://edu-mesh.vercel.app/) -The EduMesh Team 
