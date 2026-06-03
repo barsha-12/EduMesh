@@ -5,6 +5,7 @@ import { useToastStore } from '../store/toastStore';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/authStore';
 import { Send, GraduationCap, Sparkles, Trophy, AlertTriangle, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import GlassCard from '../components/ui/GlassCard';
 import Button from '../components/ui/Button';
 import InputField from '../components/ui/InputField';
@@ -212,12 +213,12 @@ export default function Feynman() {
                   {exchanges.map((msg, i) => (
                     <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                       className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[80%] p-4 rounded-3xl text-sm leading-relaxed font-body ${
+                      <div className={`max-w-[80%] p-4 rounded-3xl text-sm leading-relaxed font-body ai-notes ${
                         msg.role === 'user'
                           ? 'bg-gradient-to-br from-periwinkle to-lavender text-primary rounded-tr-sm shadow-sm'
                           : 'bg-white border border-pearl rounded-tl-sm text-primary shadow-sm'
                       }`}>
-                        {msg.text}
+                        <ReactMarkdown>{msg.text}</ReactMarkdown>
                       </div>
                     </motion.div>
                   ))}
@@ -236,19 +237,21 @@ export default function Feynman() {
                 </GlassCard>
 
                 {/* Input */}
-                <GlassCard className="!p-2 flex gap-2 items-center">
-                  <input
-                    type="text" value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder="Explain the concept..."
-                    className="flex-1 bg-transparent border-none focus:ring-0 px-4 py-3 font-body text-base text-primary placeholder-muted outline-none"
-                    disabled={isLoading}
-                  />
-                  <button type="submit" disabled={!input.trim() || isLoading}
-                    className="w-12 h-12 rounded-[20px] bg-gradient-to-br from-periwinkle to-lavender text-white flex items-center justify-center shadow-sm disabled:opacity-30">
-                    <Send size={20} />
-                  </button>
-                </GlassCard>
+                <form onSubmit={sendMessage} className="w-full">
+                  <GlassCard className="!p-2 flex gap-2 items-center">
+                    <input
+                      type="text" value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      placeholder="Explain the concept..."
+                      className="flex-1 bg-transparent border-none focus:ring-0 px-4 py-3 font-body text-base text-primary placeholder-muted outline-none"
+                      disabled={isLoading}
+                    />
+                    <button type="submit" disabled={!input.trim() || isLoading}
+                      className="w-12 h-12 rounded-[20px] bg-gradient-to-br from-periwinkle to-lavender text-white flex items-center justify-center shadow-sm disabled:opacity-30">
+                      <Send size={20} />
+                    </button>
+                  </GlassCard>
+                </form>
 
                 {exchangeCount >= 5 && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
